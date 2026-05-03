@@ -1,0 +1,69 @@
+Q: What does CPU stand for?
+A: Central Process Unit
+B: Central Processing Unit
+C: Computer Personal Unit
+D: Central Processor Utility
+ANSWER: B
+
+Q: Which planet is known as the Red Planet?
+A: Venus
+B: Mars
+C: Mercury
+D: Jupiter
+ANSWER: B
+
+Q: What is the capital of France?
+A: Rome
+B: Madrid
+C: Paris
+D: Berlin
+ANSWER: C
+
+Q: In Java, which keyword is used to create an object?
+A: class
+B: new
+C: object
+D: make
+ANSWER: B
+
+Q: Which data structure uses FIFO order?
+A: Stack
+B: Queue
+C: Tree
+D: Graph
+ANSWER: B
+
+Q: How many bits are in one byte?
+A: 4
+B: 16
+C: 8
+D: 2
+ANSWER: C
+
+Q: Which ocean is the largest on Earth?
+A: Atlantic Ocean
+B: Indian Ocean
+C: Arctic Ocean
+D: Pacific Ocean
+ANSWER: D
+
+Q: What does HTML stand for?
+A: HyperText Markup Language
+B: HighText Machine Language
+C: Hyper Transfer Markup Logic
+D: Home Tool Markup Language
+ANSWER: A
+
+Q: Which company created the Java programming language?
+A: Microsoft
+B: Apple
+C: Sun Microsystems
+D: IBM
+ANSWER: C
+
+Q: What is the value of pi rounded to two decimal places?
+A: 3.12
+B: 3.14
+C: 3.16
+D: 3.18
+ANSWER: B
