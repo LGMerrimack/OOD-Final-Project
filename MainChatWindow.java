@@ -49,6 +49,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private JButton sendButton, clearButton, exportButton, logoutButton, emojiButton;
     private JButton availableRoomsButton, createRoomButton, deleteRoomButton;
     private JButton themeButton, mediaButton;
+    private JButton launchUnoButton, launchWwtbamButton;
     private JLabel statusDot, statusText, userLabel, roomLabel, roomTypeLabel;
     private DefaultListModel<String> userListModel = new DefaultListModel<>();
 
@@ -145,8 +146,20 @@ public class MainChatWindow extends JFrame implements ActionListener {
         logoutButton = GUIStyles.button("Logout", GUIStyles.current.ERROR, Color.WHITE);
         logoutButton.addActionListener(this);
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        launchUnoButton = GUIStyles.button("UNO", GUIStyles.current.BG_TAB_ACTIVE, GUIStyles.current.TEXT_PRIMARY);
+        launchUnoButton.setPreferredSize(new Dimension(60, 32));
+        launchUnoButton.setToolTipText("Launch UNO game");
+        launchUnoButton.addActionListener(this);
+
+        launchWwtbamButton = GUIStyles.button("WWTBAM", GUIStyles.current.BG_TAB_ACTIVE, GUIStyles.current.TEXT_PRIMARY);
+        launchWwtbamButton.setPreferredSize(new Dimension(90, 32));
+        launchWwtbamButton.setToolTipText("Launch Who Wants to Be a Millionaire");
+        launchWwtbamButton.addActionListener(this);
+
         right.setBackground(GUIStyles.current.BG_PANEL);
         right.add(userLabel = label(username, GUIStyles.FONT_SMALL, GUIStyles.current.TEXT_PRIMARY));
+        right.add(launchUnoButton);
+        right.add(launchWwtbamButton);
         right.add(logoutButton);
 
         bar.add(left, BorderLayout.WEST);
@@ -652,7 +665,33 @@ public class MainChatWindow extends JFrame implements ActionListener {
             case "Available Rooms" -> promptAvailableRooms();
             case "Create Private Room" -> promptCreatePrivateRoom();
             case "Delete Private Room" -> promptDeletePrivateRoom();
+            case "UNO" -> launchUnoGame();
+            case "WWTBAM" -> launchWwtbamGame();
         }
+    }
+
+    private void launchUnoGame() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new UnoGame();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Could not launch UnoGame:\n" + ex.getMessage(),
+                        "Launch Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
+
+    private void launchWwtbamGame() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new GameWWTBAM();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Could not launch GameWWTBAM:\n" + ex.getMessage(),
+                        "Launch Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
 
     // send

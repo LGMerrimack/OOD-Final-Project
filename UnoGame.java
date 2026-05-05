@@ -737,6 +737,14 @@ public class UnoGame extends JFrame {
         });
     }
 
+    private String decryptChatPayload(String encryptedPayload) {
+        try {
+            return EncryptionManager.decryptMessage(encryptedPayload);
+        } catch (RuntimeException ex) {
+            return "[Could not decrypt chat message]";
+        }
+    }
+
     // sends message
     private void sendChatMessage() {
         String text = chatInput.getText().trim();
@@ -744,14 +752,24 @@ public class UnoGame extends JFrame {
             return;
         chatInput.setText("");
 
-        String formatted = "[" + localPlayerName + "]: " + text;
+        String formatted = localPlayerName + ": " + text;
+        String encryptedPayload;
+        try {
+            encryptedPayload = EncryptionManager.encryptMessage(formatted);
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not encrypt chat message:\n" + ex.getMessage(),
+                    "Encryption Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         appendChat(formatted);
 
         if (isHost) {
             // broadcast to all clients
             for (ObjectOutputStream out : clientOuts) {
                 try {
-                    out.writeObject(new NetMessage(NetMessage.Type.CHAT, formatted));
+                    out.writeObject(new NetMessage(NetMessage.Type.CHAT, encryptedPayload));
                     out.flush();
                     out.reset();
                 } catch (IOException ex) {
@@ -760,7 +778,7 @@ public class UnoGame extends JFrame {
             }
         } else {
             // send to host, who will relay it to everyone
-            sendToHost(new NetMessage(NetMessage.Type.CHAT, formatted));
+            sendToHost(new NetMessage(NetMessage.Type.CHAT, encryptedPayload));
         }
     }
 
@@ -1065,7 +1083,10 @@ public class UnoGame extends JFrame {
                 refreshUI();
                 updateTurnInfo();
             }
-            case CHAT -> appendChat((String) msg.payload);
+            case CHAT -> {
+                String encryptedPayload = (String) msg.payload;
+                appendChat(decryptChatPayload(encryptedPayload));
+            }
             default -> {
             }
         }
@@ -1081,12 +1102,12 @@ public class UnoGame extends JFrame {
                 refreshUI();
             }
             case CHAT -> {
-                // Host relays the chat message to all other clients, then displays locally
-                String chatMsg = (String) msg.payload;
-                appendChat(chatMsg);
+                // Host relays encrypted chat payload to all clients, then decrypts locally.
+                String encryptedPayload = (String) msg.payload;
+                appendChat(decryptChatPayload(encryptedPayload));
                 for (ObjectOutputStream out : clientOuts) {
                     try {
-                        out.writeObject(new NetMessage(NetMessage.Type.CHAT, chatMsg));
+                        out.writeObject(new NetMessage(NetMessage.Type.CHAT, encryptedPayload));
                         out.flush();
                         out.reset();
                     } catch (IOException ex) {
