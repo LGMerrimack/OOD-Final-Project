@@ -1,0 +1,125 @@
+@startuml SHACWaffle
+
+actor User
+participant CClient
+participant LoginWindow
+participant MainChatWindow
+participant ChatClient
+participant CServer
+participant ClientHandler
+participant AuthenticationManager
+participant ChatRoom
+participant EncryptionManager
+
+User -> CClient : run application
+CClient -> LoginWindow : getInstance()
+
+User -> LoginWindow : enter username/password\nchoose Login or New User
+LoginWindow -> MainChatWindow : create(username)
+LoginWindow -> ChatClient : create(username, password,\nisNewUser, chatWindow)
+LoginWindow -> MainChatWindow : setChatClient(chatClient)
+LoginWindow -> ChatClient : connect()
+
+ChatClient -> CServer : open socket connection
+CServer -> ClientHandler : create for socket
+
+ClientHandler -> ChatClient : "Login or New User?"
+ChatClient -> ClientHandler : "login" / "new"
+
+ClientHandler -> ChatClient : "Enter username:"
+ChatClient -> ClientHandler : username
+
+ClientHandler -> ChatClient : "Enter password hash:"
+ChatClient -> AuthenticationManager : validateCredentials(username, password)
+AuthenticationManager --> ChatClient : AuthResult
+ChatClient -> AuthenticationManager : hashPasswordForTransmission(password)
+AuthenticationManager --> ChatClient : transmittedHash
+ChatClient -> ClientHandler : transmittedHash
+
+alt login
+  ClientHandler -> AuthenticationManager : loginUserWithHash(username, transmittedHash)
+  AuthenticationManager --> ClientHandler : AuthResult
+else register
+  ClientHandler -> AuthenticationManager : registerUserWithHash(username, transmittedHash)
+  AuthenticationManager --> ClientHandler : AuthResult
+end
+
+alt auth success
+  ClientHandler -> ChatClient : AUTH_OK
+  ClientHandler -> ChatClient : ROOMS_BEGIN ... ROOMS_END
+  ChatClient -> ChatClient : readRoomList()
+  ChatClient -> MainChatWindow : chooseRoom(availableRooms)
+  MainChatWindow --> ChatClient : selected RoomInfo
+  ChatClient -> ClientHandler : selected room number
+
+  ClientHandler -> ChatRoom : addClient(output)
+  ClientHandler -> ChatClient : "Joined: room"
+  ClientHandler -> ChatClient : CONTROL:ROOM_SYNC:room:isPrivate:owner
+  ClientHandler -> EncryptionManager : encryptMessage("[room] user has joined the chat.")
+  EncryptionManager --> ClientHandler : encrypted join msg
+  ClientHandler -> ChatRoom : broadcastEncrypted(encrypted join msg)
+
+  ChatClient -> MainChatWindow : setConnected(true)
+  ChatClient -> MainChatWindow : resetUsers(username)
+  ChatClient -> MainChatWindow : setCurrentRoom(...)
+else auth fail
+  ClientHandler -> ChatClient : AUTH_FAIL
+  ChatClient -> MainChatWindow : appendSystemMessage(error)
+end
+
+User -> MainChatWindow : type message and click Send
+MainChatWindow -> ChatClient : sendMessage(text)
+ChatClient -> EncryptionManager : encryptMessage(text)
+EncryptionManager --> ChatClient : encrypted text
+ChatClient -> ClientHandler : encrypted text
+
+ClientHandler -> EncryptionManager : decryptMessage(ciphertext)
+EncryptionManager --> ClientHandler : plaintext
+ClientHandler -> EncryptionManager : encryptMessage(username + ": " + plaintext)
+EncryptionManager --> ClientHandler : encrypted broadcast
+ClientHandler -> ChatRoom : broadcastEncrypted(encrypted broadcast)
+
+ChatRoom -> ChatClient : encrypted broadcast
+ChatClient -> EncryptionManager : decryptMessage(ciphertext)
+EncryptionManager --> ChatClient : decrypted message
+ChatClient -> MainChatWindow : appendMessage(sender, message)
+
+opt create private room
+  User -> MainChatWindow : click Create Private Room
+  MainChatWindow -> ChatClient : createPrivateRoom(roomName)
+  ChatClient -> EncryptionManager : encryptMessage("/create-private " + roomName)
+  EncryptionManager --> ChatClient : encrypted command
+  ChatClient -> ClientHandler : encrypted command
+  ClientHandler -> EncryptionManager : decryptMessage(ciphertext)
+  EncryptionManager --> ClientHandler : "/create-private ..."
+  ClientHandler -> CServer : createPrivateRoom(...)
+  CServer --> ClientHandler : new ChatRoom
+  ClientHandler -> ChatRoom : switchToRoom(newRoom, true)
+  ClientHandler -> ChatClient : CONTROL:NOTICE:Private room created
+  ClientHandler -> ChatClient : CONTROL:ROOM_SYNC:...
+end
+
+opt delete private room
+  User -> MainChatWindow : click Delete Private Room
+  MainChatWindow -> ChatClient : deleteCurrentPrivateRoom()
+  ChatClient -> EncryptionManager : encryptMessage("/delete-room")
+  EncryptionManager --> ChatClient : encrypted command
+  ChatClient -> ClientHandler : encrypted command
+  ClientHandler -> EncryptionManager : decryptMessage(ciphertext)
+  EncryptionManager --> ClientHandler : "/delete-room"
+  ClientHandler -> ChatRoom : switch back to default room
+  ClientHandler -> CServer : deleteRoom(oldPrivateRoom)
+  ClientHandler -> ChatClient : CONTROL:NOTICE:Private room deleted
+end
+
+User -> MainChatWindow : logout
+MainChatWindow -> ChatClient : disconnect()
+ChatClient -> EncryptionManager : encryptMessage("exit")
+EncryptionManager --> ChatClient : encrypted exit
+ChatClient -> ClientHandler : encrypted exit
+ClientHandler -> ChatRoom : removeClient(output)
+ClientHandler -> EncryptionManager : encryptMessage("[room] user has left the chat.")
+EncryptionManager --> ClientHandler : encrypted leave msg
+ClientHandler -> ChatRoom : broadcastEncrypted(encrypted leave msg)
+
+@enduml

@@ -1,0 +1,261 @@
+@startuml SHACWaffle
+
+skinparam classAttributeIconSize 0
+
+class CClient {
+  +main(args: String[]): void
+}
+
+class LoginWindow {
+  -instance: LoginWindow
+  -loginListener: LoginListener
+  -usernameField: JTextField
+  -passwordField: JPasswordField
+  -submitButton: JButton
+  -statusLabel: JLabel
+  -usernameError: JLabel
+  -passwordError: JLabel
+  -loginTab: JButton
+  -newTab: JButton
+  -isNewUser: boolean
+  -logo: Image
+  +getInstance(): LoginWindow
+  +setLoginListener(l: LoginListener): void
+  +actionPerformed(e: ActionEvent): void
+  +main(args: String[]): void
+}
+
+interface LoginListener {
+  +onLoginSuccess(username: String): void
+}
+
+class MainChatWindow {
+  -username: String
+  -connected: boolean
+  -chatClient: ChatClient
+  -currentRoomName: String
+  -currentRoomPrivate: boolean
+  -ownsCurrentRoom: boolean
+  -chatLog: StringBuilder
+  -chatDoc: StyledDocument
+  -emojiCache: Map<String, ImageIcon>
+  -logo: Image
+  -chatArea: JTextPane
+  -inputField: JTextField
+  -sendButton: JButton
+  -clearButton: JButton
+  -exportButton: JButton
+  -logoutButton: JButton
+  -emojiButton: JButton
+  -UploadFileButton: JButton
+  -createRoomButton: JButton
+  -uploadRoomFileButton: JButton
+  -deleteRoomButton: JButton
+  -statusDot: JLabel
+  -statusText: JLabel
+  -userLabel: JLabel
+  -roomLabel: JLabel
+  -roomTypeLabel: JLabel
+  -userListModel: DefaultListModel<String>
+  +MainChatWindow(username: String)
+  +setChatClient(c: ChatClient): void
+  +actionPerformed(e: ActionEvent): void
+  +appendMessage(sender: String, message: String): void
+  +appendSystemMessage(message: String): void
+  +setCurrentRoom(roomName: String, privateRoom: boolean, owner: boolean): void
+  +resetUsers(selfName: String): void
+  +chooseRoom(rooms: List<ChatClient.RoomInfo>): ChatClient.RoomInfo
+  +addUser(name: String): void
+  +removeUser(name: String): void
+  +setConnected(online: boolean): void
+  -buildTopBar(): JPanel
+  -buildBody(): JPanel
+  -buildRoomBar(): JPanel
+  -buildChatPanel(): JPanel
+  -buildUsersPanel(): JPanel
+  -buildInputBar(): JPanel
+  -showEmojiPicker(): void
+  -sendMessage(): void
+  -promptUploadFile(): void
+  -appendFormatted(sender: String, ts: String, text: String): void
+  -clearChat(): void
+  -exportLog(): void
+  -promptCreatePrivateRoom(): void
+  -promptDeletePrivateRoom(): void
+  -updateRoomButtons(): void
+  -confirmLogout(): void
+  -confirmExit(): void
+  -loadEmojis(): void
+  +main(args: String[]): void
+}
+
+class ChatClient {
+  -SERVER_ADDRESS: String
+  -SERVER_PORT: int
+  -FILE_CHUNK_SIZE: int
+  -username: String
+  -password: String
+  -isNewUser: boolean
+  -chatWindow: MainChatWindow
+  -socket: Socket
+  -output: PrintWriter
+  -input: BufferedReader
+  -running: boolean
+  -selectedRoom: RoomInfo
+  +setServerAddress(address: String): void
+  +ChatClient(username: String, password: String, isNewUser: boolean, chatWindow: MainChatWindow)
+  +connect(): void
+  -readRoomList(): List<RoomInfo>
+  -listenLoop(): void
+  -handleControlMessage(line: String): void
+  +sendMessage(plaintext: String): void
+  +sendFile(file: File): void
+  +createPrivateRoom(roomName: String): void
+  +deleteCurrentPrivateRoom(): void
+  +disconnect(): void
+  -notifySystem(msg: String): void
+  -extractUser(msg: String, suffix: String): String
+}
+
+class "ChatClient.RoomInfo" as RoomInfo {
+  -number: int
+  -name: String
+  -clientCount: int
+  -privateRoom: boolean
+  -ownerUsername: String
+  +RoomInfo(number: int, name: String, clientCount: int, privateRoom: boolean, ownerUsername: String)
+  +getNumber(): int
+  +getName(): String
+  +getClientCount(): int
+  +isPrivateRoom(): boolean
+  +getOwnerUsername(): String
+  +isOwnedBy(username: String): boolean
+  +toString(): String
+}
+
+class AuthenticationManager {
+  -USERS_FILE: String
+  -USER_RE: Pattern
+  -PASS_RE: Pattern
+  +validateCredentials(username: String, password: String): AuthResult
+  +hashPasswordForTransmission(password: String): String
+  +loginUserWithHash(username: String, transmittedHash: String): AuthResult
+  +registerUserWithHash(username: String, transmittedHash: String): AuthResult
+  -loadUsers(): HashMap<String, String>
+}
+
+class "AuthenticationManager.AuthResult" as AuthResult {
+  -success: boolean
+  -message: String
+  +AuthResult(success: boolean, message: String)
+  +isSuccess(): boolean
+  +getMessage(): String
+}
+
+class EncryptionManager {
+  -AES_KEY: String
+  -strategy: EncryptionStrategy
+  +setStrategy(newStrategy: EncryptionStrategy): void
+  +encryptMessage(plaintext: String): String
+  +decryptMessage(ciphertext: String): String
+}
+
+interface "EncryptionManager.EncryptionStrategy" as EncryptionStrategy {
+  +encrypt(plaintext: String): String
+  +decrypt(ciphertext: String): String
+}
+
+class "EncryptionManager.AESEncryptionStrategy" as AESEncryptionStrategy {
+  -aesKey: String
+  +AESEncryptionStrategy(aesKey: String)
+  +encrypt(plaintext: String): String
+  +decrypt(ciphertext: String): String
+}
+
+class "EncryptionManager.NoEncryptionStrategy" as NoEncryptionStrategy {
+  +encrypt(plaintext: String): String
+  +decrypt(ciphertext: String): String
+}
+
+class CServer {
+  -DEFAULT_ROOM_NAME: String
+  -ROOM_NAME_RE: Pattern
+  -ROOMS_LOCK: Object
+  -rooms: List<ChatRoom>
+  +main(args: String[]): void
+  -getDefaultRoom(): ChatRoom
+  -findRoomByName(roomName: String): ChatRoom
+  -createPrivateRoom(roomName: String, ownerUsername: String): ChatRoom
+  -deleteRoom(room: ChatRoom): void
+  -sendRoomList(output: PrintWriter): void
+}
+
+class "CServer.ClientHandler" as ClientHandler {
+  -socket: Socket
+  -selectedRoom: ChatRoom
+  -output: PrintWriter
+  -input: BufferedReader
+  -username: String
+  +ClientHandler(socket: Socket)
+  -sendNotice(message: String): void
+  -sendRoomSync(): void
+  -broadcastRoomDeparture(room: ChatRoom): void
+  -broadcastRoomArrival(room: ChatRoom): void
+  -switchToRoom(newRoom: ChatRoom, announceJoin: boolean): void
+  -handleRoomCommand(decryptedMessage: String): boolean
+  +run(): void
+}
+
+class ChatRoom {
+  -name: String
+  -privateRoom: boolean
+  -ownerUsername: String
+  -clients: Set<PrintWriter>
+  +ChatRoom(name: String)
+  +ChatRoom(name: String, privateRoom: boolean, ownerUsername: String)
+  +getName(): String
+  +isPrivate(): boolean
+  +getOwnerUsername(): String
+  +isOwnedBy(username: String): boolean
+  +getClientCount(): int
+  +isEmpty(): boolean
+  +addClient(writer: PrintWriter): void
+  +removeClient(writer: PrintWriter): void
+  +broadcastEncrypted(encryptedMessage: String): void
+}
+
+class GUIStyles {
+  +button(text: String, bg: Color, fg: Color): JButton
+  +smallButton(text: String): JButton
+  +tabButton(text: String, active: boolean): JButton
+  +styleField(tf: JTextField): void
+  +fieldLabel(text: String): JLabel
+  +errorLabel(): JLabel
+  +loadImage(filename: String): Image
+  +paintWatermark(g: Graphics, logo: Image, panelW: int, panelH: int, opacity: float): void
+}
+
+CClient --> LoginWindow : launches
+LoginWindow ..> LoginListener
+LoginWindow --> GUIStyles : uses
+LoginWindow --> MainChatWindow : creates
+LoginWindow --> ChatClient : creates
+MainChatWindow --> GUIStyles : uses
+MainChatWindow --> ChatClient : holds reference
+MainChatWindow ..> RoomInfo : chooses room
+ChatClient --> AuthenticationManager : validates + hashes
+ChatClient --> EncryptionManager : encrypt/decrypt
+ChatClient --> MainChatWindow : updates UI
+ChatClient *-- RoomInfo
+AuthenticationManager *-- AuthResult
+EncryptionManager *-- EncryptionStrategy
+EncryptionStrategy <|.. AESEncryptionStrategy
+EncryptionStrategy <|.. NoEncryptionStrategy
+CServer *-- ClientHandler
+CServer *-- ChatRoom
+ClientHandler --> AuthenticationManager : authenticate
+ClientHandler --> EncryptionManager : encrypt/decrypt
+ClientHandler --> ChatRoom : join / leave / broadcast / switch
+ChatRoom --> PrintWriter : stores client outputs
+
+@enduml

@@ -1,0 +1,66 @@
+@startuml SHACWaffle
+left to right direction
+
+actor User
+actor "Server Admin" as Admin
+
+rectangle "Secure Chat System" {
+  usecase "Launch Application" as UC1
+  usecase "Choose Login or Register" as UC2
+  usecase "Validate Credentials" as UC3
+  usecase "Hash Password" as UC4
+  usecase "Login User" as UC5
+  usecase "Register User" as UC6
+  usecase "Connect to Server" as UC7
+  usecase "View Available Rooms" as UC8
+  usecase "Choose Room" as UC9
+  usecase "Join Chat Room" as UC10
+  usecase "Send Encrypted Message" as UC11
+  usecase "Receive and Decrypt Message" as UC12
+  usecase "View Online Users" as UC13
+  usecase "Create Private Room" as UC14
+  usecase "Delete Private Room" as UC15
+  usecase "Use Emojis" as UC16
+  usecase "Export Chat Log" as UC17
+  usecase "Clear Chat Display" as UC18
+  usecase "Logout / Disconnect" as UC19
+  usecase "Start Server" as UC20
+  usecase "Manage Client Connections" as UC21
+  usecase "Broadcast Room Messages" as UC22
+}
+
+User --> UC1
+User --> UC2
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC9
+User --> UC10
+User --> UC11
+User --> UC12
+User --> UC13
+User --> UC14
+User --> UC15
+User --> UC16
+User --> UC17
+User --> UC18
+User --> UC19
+
+Admin --> UC20
+Admin --> UC21
+Admin --> UC22
+
+UC5 .> UC3 : <<include>>
+UC6 .> UC3 : <<include>>
+UC5 .> UC4 : <<include>>
+UC6 .> UC4 : <<include>>
+UC10 .> UC8 : <<include>>
+UC10 .> UC9 : <<include>>
+UC11 .> UC10 : <<include>>
+UC12 .> UC10 : <<include>>
+UC21 .> UC22 : <<include>>
+UC14 .> UC10 : <<include>>
+UC15 .> UC10 : <<include>>
+
+@enduml
