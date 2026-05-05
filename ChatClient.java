@@ -91,7 +91,7 @@ public class ChatClient {
     }
 
     
-    private static String SERVER_ADDRESS = "10.2.146.110";
+    private static String SERVER_ADDRESS = "10.2.131.0";
     private static final int SERVER_PORT = 3500;
 
     private static final int FILE_CHUNK_SIZE = 12000;
@@ -416,6 +416,47 @@ public class ChatClient {
                 chatWindow.resetUsers(username);
             });
         }
+
+        if (line.startsWith("CONTROL:GAME_INVITE:")) {
+            String rest = line.substring("CONTROL:GAME_INVITE:".length());
+            // format: gameType:fromUser
+            int sep = rest.indexOf(':');
+            if (sep < 0) return;
+            String gameType = rest.substring(0, sep);
+            String fromUser = rest.substring(sep + 1);
+            SwingUtilities.invokeLater(() -> chatWindow.handleGameInvite(gameType, fromUser));
+            return;
+        }
+
+        if (line.startsWith("CONTROL:GAME_ACCEPT:")) {
+            String rest = line.substring("CONTROL:GAME_ACCEPT:".length());
+            int sep = rest.indexOf(':');
+            if (sep < 0) return;
+            String gameType = rest.substring(0, sep);
+            String accepter = rest.substring(sep + 1);
+            SwingUtilities.invokeLater(() -> chatWindow.handleGameAccept(gameType, accepter));
+            return;
+        }
+
+        if (line.startsWith("CONTROL:GAME_DECLINE:")) {
+            String rest = line.substring("CONTROL:GAME_DECLINE:".length());
+            int sep = rest.indexOf(':');
+            if (sep < 0) return;
+            String gameType = rest.substring(0, sep);
+            String decliner = rest.substring(sep + 1);
+            SwingUtilities.invokeLater(() -> chatWindow.handleGameDecline(gameType, decliner));
+            return;
+        }
+
+        if (line.startsWith("CONTROL:GAME_MOVE:")) {
+            String rest = line.substring("CONTROL:GAME_MOVE:".length());
+            int sep = rest.indexOf(':');
+            if (sep < 0) return;
+            String from = rest.substring(0, sep);
+            String payload = rest.substring(sep + 1);
+            SwingUtilities.invokeLater(() -> chatWindow.handleGameMove(from, payload));
+            return;
+        }
     }
 
     private List<RoomInfo> parseRoomList(String payload) {
@@ -508,6 +549,22 @@ public class ChatClient {
 
     public void deleteCurrentPrivateRoom() {
         sendMessage("/delete-room");
+    }
+
+    public void sendGameInvite(String gameType, String targetUser) {
+        sendMessage("/game-invite " + gameType + ":" + targetUser);
+    }
+
+    public void sendGameAccept(String gameType, String fromUser) {
+        sendMessage("/game-accept " + gameType + ":" + fromUser);
+    }
+
+    public void sendGameDecline(String gameType, String fromUser) {
+        sendMessage("/game-decline " + gameType + ":" + fromUser);
+    }
+
+    public void sendGameMove(String targetUser, String payload) {
+        sendMessage("/game-move " + targetUser + ":" + payload);
     }
 
     public void disconnect() {

@@ -38,6 +38,10 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private boolean currentRoomPrivate = false;
     private boolean ownsCurrentRoom = false;
 
+    // active game sessions
+    private BattleshipGUI activeBattleshipGame = null;
+    private String pendingBattleshipOpponent = null;  // waiting for this user to accept
+
     private StringBuilder chatLog = new StringBuilder();
     private StyledDocument chatDoc = new DefaultStyledDocument();
     private final Map<String, ImageIcon> emojiCache = new HashMap<>();
@@ -981,6 +985,11 @@ public class MainChatWindow extends JFrame implements ActionListener {
     }
 
     private void promptBattleshipInvite() {
+        if (!connected || chatClient == null) {
+            JOptionPane.showMessageDialog(this, "You must be connected to invite someone.");
+            return;
+        }
+
         JTextField userField = new JTextField();
         GUIStyles.styleField(userField);
 
@@ -991,7 +1000,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
         JLabel userHint = new JLabel("Enter the username to challenge:");
         userHint.setFont(GUIStyles.FONT_SMALL);
         userHint.setForeground(GUIStyles.current.TEXT_MUTED);
-        JLabel infoHint = new JLabel("They must be online. An invite will appear in the chat.");
+        JLabel infoHint = new JLabel("They must be online. They will get an accept/decline prompt.");
         infoHint.setFont(GUIStyles.FONT_TINY);
         infoHint.setForeground(GUIStyles.current.TEXT_MUTED);
 
@@ -1011,13 +1020,14 @@ public class MainChatWindow extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "Username is required.");
             return;
         }
-
-        String invite = "@" + opponent + " — " + username
-                + " is challenging you to a game of Battleship! Open the game from chat to play.";
-        if (connected && chatClient != null) {
-            chatClient.sendMessage(invite);
+        if (opponent.equalsIgnoreCase(username)) {
+            JOptionPane.showMessageDialog(this, "You cannot invite yourself.");
+            return;
         }
-        appendSystemMessage("Battleship invite sent to " + opponent + ".");
+
+        pendingBattleshipOpponent = opponent;
+        chatClient.sendGameInvite("battleship", opponent);
+        appendSystemMessage("Battleship invite sent to " + opponent + ". Waiting for them to accept...");
     }
 
     private void promptAvailableRooms() {
@@ -1076,6 +1086,74 @@ public class MainChatWindow extends JFrame implements ActionListener {
         BattleshipGUI.launchWithStartChoice(username, this::promptBattleshipInvite);
     }
 
+    // ── Game invite handlers (called by ChatClient on the EDT) ──────────────
+
+    public void handleGameInvite(String gameType, String fromUser) {
+        String label = gameType.equals("battleship") ? "Battleship" : gameType.toUpperCase();
+        int resp = JOptionPane.showConfirmDialog(this,
+                fromUser + " is challenging you to " + label + "!\nDo you accept?",
+                label + " Invite", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (resp == JOptionPane.YES_OPTION) {
+            chatClient.sendGameAccept(gameType, fromUser);
+            appendSystemMessage("You accepted " + fromUser + "'s " + label + " invite. Launching game...");
+            launchGameAsJoiner(gameType, fromUser);
+        } else {
+            chatClient.sendGameDecline(gameType, fromUser);
+            appendSystemMessage("You declined " + fromUser + "'s " + label + " invite.");
+        }
+    }
+
+    public void handleGameAccept(String gameType, String accepter) {
+        String label = gameType.equals("battleship") ? "Battleship" : gameType.toUpperCase();
+        appendSystemMessage(accepter + " accepted your " + label + " invite! Launching game...");
+        launchGameAsHost(gameType, accepter);
+    }
+
+    public void handleGameDecline(String gameType, String decliner) {
+        String label = gameType.equals("battleship") ? "Battleship" : gameType.toUpperCase();
+        appendSystemMessage(decliner + " declined your " + label + " invite.");
+        if (gameType.equals("battleship"))
+            pendingBattleshipOpponent = null;
+    }
+
+    public void handleGameMove(String from, String payload) {
+        if (activeBattleshipGame != null) {
+            activeBattleshipGame.receiveMove(payload);
+        }
+    }
+
+    private void launchGameAsHost(String gameType, String opponentName) {
+        if (gameType.equals("battleship")) {
+            SwingUtilities.invokeLater(() -> {
+                activeBattleshipGame = new BattleshipGUI(username, opponentName, true, chatClient);
+                activeBattleshipGame.show();
+            });
+        } else if (gameType.equals("uno")) {
+            SwingUtilities.invokeLater(() -> {
+                try { new UnoGame(); } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Could not launch UNO:\n" + ex.getMessage(),
+                            "Launch Error", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+        }
+    }
+
+    private void launchGameAsJoiner(String gameType, String hostName) {
+        if (gameType.equals("battleship")) {
+            SwingUtilities.invokeLater(() -> {
+                activeBattleshipGame = new BattleshipGUI(username, hostName, false, chatClient);
+                activeBattleshipGame.show();
+            });
+        } else if (gameType.equals("uno")) {
+            SwingUtilities.invokeLater(() -> {
+                try { new UnoGame(); } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Could not launch UNO:\n" + ex.getMessage(),
+                            "Launch Error", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+        }
+    }
+
     private void launchUno() {
         SwingUtilities.invokeLater(() -> {
             Object[] options = {"Invite Online Player", "Play By Myself", "Cancel"};
@@ -1092,9 +1170,13 @@ public class MainChatWindow extends JFrame implements ActionListener {
             if (choice == JOptionPane.CLOSED_OPTION || choice == 2)
                 return;
 
-            if (choice == 0)
+            if (choice == 0) {
+                // Invite flow — only launch game once invite is accepted
                 promptUnoInvite();
+                return;
+            }
 
+            // "Play By Myself"
             try {
                 new UnoGame();
             } catch (Exception ex) {
@@ -1106,6 +1188,11 @@ public class MainChatWindow extends JFrame implements ActionListener {
     }
 
     private void promptUnoInvite() {
+        if (!connected || chatClient == null) {
+            JOptionPane.showMessageDialog(this, "You must be connected to invite someone.");
+            return;
+        }
+
         JTextField userField = new JTextField();
         GUIStyles.styleField(userField);
 
@@ -1116,7 +1203,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
         JLabel userHint = new JLabel("Enter the username to challenge:");
         userHint.setFont(GUIStyles.FONT_SMALL);
         userHint.setForeground(GUIStyles.current.TEXT_MUTED);
-        JLabel infoHint = new JLabel("They must be online. An invite will appear in the chat.");
+        JLabel infoHint = new JLabel("They must be online. They will get an accept/decline prompt.");
         infoHint.setFont(GUIStyles.FONT_TINY);
         infoHint.setForeground(GUIStyles.current.TEXT_MUTED);
 
@@ -1136,13 +1223,13 @@ public class MainChatWindow extends JFrame implements ActionListener {
             JOptionPane.showMessageDialog(this, "Username is required.");
             return;
         }
-
-        String invite = "@" + opponent + " \u2014 " + username
-                + " is challenging you to a game of UNO! Open the game from chat to play.";
-        if (connected && chatClient != null) {
-            chatClient.sendMessage(invite);
+        if (opponent.equalsIgnoreCase(username)) {
+            JOptionPane.showMessageDialog(this, "You cannot invite yourself.");
+            return;
         }
-        appendSystemMessage("UNO invite sent to " + opponent + ".");
+
+        chatClient.sendGameInvite("uno", opponent);
+        appendSystemMessage("UNO invite sent to " + opponent + ". Waiting for them to accept...");
     }
 
     private void promptDeletePrivateRoom() {

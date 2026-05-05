@@ -18,13 +18,13 @@ public class BattleshipGUI {
     };
 
     private final String playerName;
-    private final JFrame frame;
-    private final JLabel statusLabel;
-    private JLabel enemyFleetLabel;
-    private final JButton rotateButton;
+    private JFrame frame;
+    private final JLabel statusLabel = new JLabel("", SwingConstants.CENTER);
+    private final JLabel enemyFleetLabel = new JLabel("Enemy Fleet: \u2014", SwingConstants.CENTER);
+    private final JButton rotateButton = new JButton("Orientation: Horizontal");
 
-    private final JButton[][] playerButtons;
-    private final JButton[][] cpuButtons;
+    private final JButton[][] playerButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
+    private final JButton[][] cpuButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
 
     private BoardGraph playerBoard;
     private BoardGraph cpuBoard;
@@ -34,6 +34,21 @@ public class BattleshipGUI {
     private boolean placementHorizontal;
     private int placementShipIndex;
 
+    // Online multiplayer fields
+    private final boolean onlineMode;
+    private final boolean isHost;           // host fires first
+    private final String opponentName;
+    private final ChatClient chatClient;
+    private boolean myTurn;
+    private boolean opponentReady;
+    private boolean localReady;
+    private boolean waitingForResult;       // fired a shot, awaiting RESULT back
+    private final java.util.Set<String> onlineSunkEnemyShips = new java.util.HashSet<>();
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Launch helpers (solo / choosing mode)
+    // ──────────────────────────────────────────────────────────────────────────
+
     public static void launch() {
         launchWithStartChoice("Player", null);
     }
@@ -42,6 +57,11 @@ public class BattleshipGUI {
         launchWithStartChoice(playerName, null);
     }
 
+    /**
+     * Shows the start-mode dialog.
+     * If the user picks "Invite Online Player" the inviteAction runs and the solo
+     * game is NOT opened — the game will be opened later once the invite is accepted.
+     */
     public static void launchWithStartChoice(String playerName, Runnable inviteAction) {
         SwingUtilities.invokeLater(() -> {
             Object[] options = {"Invite Online Player", "Play By Myself", "Cancel"};
@@ -60,6 +80,7 @@ public class BattleshipGUI {
             }
 
             if (choice == 0) {
+                // Online invite — delegate entirely to the invite action; don't open game here.
                 if (inviteAction != null) {
                     inviteAction.run();
                 } else {
@@ -69,47 +90,78 @@ public class BattleshipGUI {
                             "Invite Online Player",
                             JOptionPane.INFORMATION_MESSAGE);
                 }
+                return; // game opens when opponent accepts
             }
 
+            // "Play By Myself"
             new BattleshipGUI(playerName).show();
         });
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Constructors
+    // ──────────────────────────────────────────────────────────────────────────
 
     public BattleshipGUI() {
         this("Player");
     }
 
+    /** Solo (vs CPU) constructor. */
     public BattleshipGUI(String playerName) {
         this.playerName = (playerName != null && !playerName.isBlank()) ? playerName : "Player";
-        frame = new JFrame("Graph Battleship — " + this.playerName);
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setLayout(new BorderLayout(10, 10));
+        this.onlineMode = false;
+        this.isHost = false;
+        this.opponentName = "CPU";
+        this.chatClient = null;
+        this.myTurn = true;
+        this.opponentReady = true;
+        this.localReady = false;
+        this.waitingForResult = false;
 
-        statusLabel = new JLabel("Click a cell on ENEMY WATERS to fire.", SwingConstants.CENTER);
+        frame = buildFrame();
+        startNewGame();
+    }
+
+    /**
+     * Online multiplayer constructor.
+     *
+     * @param playerName   this player's username
+     * @param opponentName the opponent's username
+     * @param isHost       true = we fire first (inviter); false = opponent fires first (invitee)
+     * @param chatClient   used to relay moves through the chat server
+     */
+    public BattleshipGUI(String playerName, String opponentName, boolean isHost, ChatClient chatClient) {
+        this.playerName = (playerName != null && !playerName.isBlank()) ? playerName : "Player";
+        this.opponentName = (opponentName != null && !opponentName.isBlank()) ? opponentName : "Opponent";
+        this.onlineMode = true;
+        this.isHost = isHost;
+        this.chatClient = chatClient;
+        this.myTurn = false;          // set properly once both players are ready
+        this.opponentReady = false;
+        this.localReady = false;
+        this.waitingForResult = false;
+
+        frame = buildFrame();
+        startOnlineGame();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Frame / board construction
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private JFrame buildFrame() {
+        String title = onlineMode
+                ? "Graph Battleship — " + playerName + " vs " + opponentName
+                : "Graph Battleship — " + playerName;
+
+        JFrame f = new JFrame(title);
+        f.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        f.setLayout(new BorderLayout(10, 10));
+
         statusLabel.setBorder(BorderFactory.createEmptyBorder(6, 8, 2, 8));
-
-        enemyFleetLabel = new JLabel("Enemy Fleet: —", SwingConstants.CENTER);
         enemyFleetLabel.setFont(enemyFleetLabel.getFont().deriveFont(12f));
         enemyFleetLabel.setBorder(BorderFactory.createEmptyBorder(2, 8, 6, 8));
 
-        JPanel northPanel = new JPanel(new BorderLayout());
-        northPanel.add(statusLabel, BorderLayout.NORTH);
-        northPanel.add(enemyFleetLabel, BorderLayout.SOUTH);
-        frame.add(northPanel, BorderLayout.NORTH);
-
-        playerButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
-        cpuButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
-
-        JPanel boards = new JPanel(new GridLayout(1, 2, 12, 12));
-        boards.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        boards.add(buildBoardPanel("YOUR WATERS", playerButtons, false));
-        boards.add(buildBoardPanel("ENEMY WATERS", cpuButtons, true));
-        frame.add(boards, BorderLayout.CENTER);
-
-        JButton newGameButton = new JButton("New Game");
-        newGameButton.addActionListener(e -> startNewGame());
-
-        rotateButton = new JButton("Orientation: Horizontal");
         rotateButton.addActionListener(e -> {
             placementHorizontal = !placementHorizontal;
             updateRotateButtonText();
@@ -118,12 +170,28 @@ public class BattleshipGUI {
             }
         });
 
+        JPanel northPanel = new JPanel(new BorderLayout());
+        northPanel.add(statusLabel, BorderLayout.NORTH);
+        northPanel.add(enemyFleetLabel, BorderLayout.SOUTH);
+        f.add(northPanel, BorderLayout.NORTH);
+
+        JPanel boards = new JPanel(new GridLayout(1, 2, 12, 12));
+        boards.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        boards.add(buildBoardPanel("YOUR WATERS", playerButtons, false));
+        boards.add(buildBoardPanel(onlineMode ? opponentName.toUpperCase() + "'S WATERS" : "ENEMY WATERS",
+                cpuButtons, true));
+        f.add(boards, BorderLayout.CENTER);
+
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottom.add(rotateButton);
-        bottom.add(newGameButton);
-        frame.add(bottom, BorderLayout.SOUTH);
+        if (!onlineMode) {
+            JButton newGameButton = new JButton("New Game");
+            newGameButton.addActionListener(e -> startNewGame());
+            bottom.add(newGameButton);
+        }
+        f.add(bottom, BorderLayout.SOUTH);
 
-        startNewGame();
+        return f;
     }
 
     private JPanel buildBoardPanel(String title, JButton[][] buttons, boolean enemyBoard) {
@@ -158,7 +226,7 @@ public class BattleshipGUI {
         return wrapper;
     }
 
-    private void show() {
+    public void show() {
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
@@ -181,6 +249,181 @@ public class BattleshipGUI {
         refreshBoards();
     }
 
+    /** Initialises the online game state — both players place their own ships. */
+    private void startOnlineGame() {
+        playerBoard = new BoardGraph();
+        cpuBoard = new BoardGraph();   // represents the opponent's board (display only)
+        cpuBot = null;
+        gameOver = false;
+        placementMode = true;
+        placementHorizontal = true;
+        placementShipIndex = 0;
+        localReady = false;
+        opponentReady = false;
+        myTurn = false;
+        waitingForResult = false;
+
+        updateRotateButtonText();
+        statusLabel.setText("Place " + currentShipName() + " (size " + currentShipSize() + ")");
+        refreshBoards();
+    }
+
+    /**
+     * Called by MainChatWindow when a GAME_MOVE arrives from the opponent.
+     * Protocol payloads:
+     *   READY                           — opponent finished placing ships
+     *   SHOT:row:col                    — opponent fires at our board
+     *   RESULT:row:col:MISS             — result of our shot (miss)
+     *   RESULT:row:col:HIT              — result of our shot (hit)
+     *   RESULT:row:col:SUNK:shipName    — result of our shot (sunk)
+     *   GAMEOVER                        — opponent declares we won (all their ships sunk)
+     */
+    public void receiveMove(String payload) {
+        if (gameOver) return;
+
+        if (payload.equals("READY")) {
+            opponentReady = true;
+            if (localReady) startOnlineFiring();
+            return;
+        }
+
+        if (payload.startsWith("SHOT:")) {
+            // opponent fired at our board
+            String[] parts = payload.split(":");
+            int row = Integer.parseInt(parts[1]);
+            int col = Integer.parseInt(parts[2]);
+            handleOpponentShot(row, col);
+            return;
+        }
+
+        if (payload.startsWith("RESULT:")) {
+            // result of our shot on opponent's board
+            String[] parts = payload.split(":", 5);
+            int row = Integer.parseInt(parts[1]);
+            int col = Integer.parseInt(parts[2]);
+            String type = parts[3];
+            String shipName = parts.length > 4 ? parts[4] : "";
+            handleShotResult(row, col, type, shipName);
+            return;
+        }
+
+        if (payload.equals("GAMEOVER")) {
+            gameOver = true;
+            statusLabel.setText(playerName + " wins! All of " + opponentName + "'s ships are sunk.");
+            refreshBoards();
+            JOptionPane.showMessageDialog(frame,
+                    "All of " + opponentName + "'s ships have been destroyed!\n" + playerName + " wins!",
+                    "Victory!", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    /** Both players are ready — the host fires first. */
+    private void startOnlineFiring() {
+        myTurn = isHost;
+        if (myTurn) {
+            statusLabel.setText("Both ready! Your turn — fire on " + opponentName.toUpperCase() + "'S WATERS.");
+        } else {
+            statusLabel.setText("Both ready! Waiting for " + opponentName + " to fire...");
+        }
+        refreshBoards();
+    }
+
+    /**
+     * Opponent fired at our board — process it and send the result back.
+     * Also switches turn so we can fire next.
+     */
+    private void handleOpponentShot(int row, int col) {
+        BoardGraph.FireResult result = playerBoard.fire(row, col);
+        refreshBoards();
+
+        String payload;
+        if (result == BoardGraph.FireResult.SUNK) {
+            Ship sunk = playerBoard.cells[row][col].ship;
+            payload = "RESULT:" + row + ":" + col + ":SUNK:" + sunk.name;
+            long remaining = playerBoard.getShips().stream().filter(s -> !s.isSunk()).count();
+            statusLabel.setText(opponentName + " sunk your " + sunk.name + "! ("
+                    + remaining + " of your ships remaining). Your turn.");
+        } else if (result == BoardGraph.FireResult.HIT) {
+            payload = "RESULT:" + row + ":" + col + ":HIT";
+            statusLabel.setText(opponentName + " hit your ship at " + toCoord(row, col) + ". Your turn.");
+        } else {
+            payload = "RESULT:" + row + ":" + col + ":MISS";
+            statusLabel.setText(opponentName + " missed at " + toCoord(row, col) + ". Your turn.");
+        }
+
+        chatClient.sendGameMove(opponentName, payload);
+
+        if (playerBoard.allShipsSunk()) {
+            gameOver = true;
+            statusLabel.setText(opponentName + " wins! Your fleet was sunk.");
+            refreshBoards();
+            // Tell opponent they won
+            chatClient.sendGameMove(opponentName, "GAMEOVER");
+            JOptionPane.showMessageDialog(frame,
+                    "All your ships have been destroyed!\n" + opponentName + " wins!",
+                    "Defeat!", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        myTurn = true;
+        waitingForResult = false;
+        refreshBoards();
+    }
+
+    /**
+     * We received the result of our shot from the opponent.
+     * Update the display board and check for win.
+     */
+    private void handleShotResult(int row, int col, String type, String shipName) {
+        waitingForResult = false;
+
+        Cell cell = cpuBoard.cells[row][col];
+        // cell.isHit was already optimistically set when we fired
+
+        if (type.equals("MISS")) {
+            cell.hasShip = false;
+            statusLabel.setText("You missed at " + toCoord(row, col) + ". " + opponentName + "'s turn.");
+            myTurn = false;
+        } else if (type.equals("HIT")) {
+            cell.hasShip = true;
+            statusLabel.setText("Hit at " + toCoord(row, col) + "! " + opponentName + "'s turn.");
+            myTurn = false;
+        } else if (type.equals("SUNK")) {
+            cell.hasShip = true;
+            onlineSunkEnemyShips.add(shipName);
+            updateEnemyFleetStatusOnline();
+            if (onlineSunkEnemyShips.size() >= FLEET.length) {
+                gameOver = true;
+                statusLabel.setText(playerName + " wins! All of " + opponentName + "'s ships are sunk.");
+                refreshBoards();
+                JOptionPane.showMessageDialog(frame,
+                        "All of " + opponentName + "'s ships have been destroyed!\n" + playerName + " wins!",
+                        "Victory!", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            statusLabel.setText("You sunk " + opponentName + "'s " + shipName + "! "
+                    + opponentName + "'s turn.");
+            myTurn = false;
+        }
+
+        refreshBoards();
+    }
+
+    private void updateEnemyFleetStatusOnline() {
+        StringBuilder sb = new StringBuilder("<html><center><b>" + opponentName + "'s Fleet:</b>&nbsp;&nbsp;");
+        for (String[] cfg : FLEET) {
+            String n = cfg[0];
+            if (onlineSunkEnemyShips.contains(n)) {
+                sb.append("<font color='#cc3333'><strike>").append(n).append("</strike></font>");
+            } else {
+                sb.append("<font color='#2a7a2a'>").append(n).append("</font>");
+            }
+            sb.append("&nbsp;&nbsp;");
+        }
+        sb.append("</center></html>");
+        enemyFleetLabel.setText(sb.toString());
+    }
+
     private void handleShipPlacement(int row, int col) {
         if (!placementMode || gameOver) {
             return;
@@ -197,7 +440,17 @@ public class BattleshipGUI {
         placementShipIndex++;
         if (placementShipIndex >= FLEET.length) {
             placementMode = false;
-            statusLabel.setText("Fleet ready. Fire on ENEMY WATERS.");
+            if (onlineMode) {
+                localReady = true;
+                chatClient.sendGameMove(opponentName, "READY");
+                if (opponentReady) {
+                    startOnlineFiring();
+                } else {
+                    statusLabel.setText("Fleet ready! Waiting for " + opponentName + " to finish placing ships...");
+                }
+            } else {
+                statusLabel.setText("Fleet ready. Fire on ENEMY WATERS.");
+            }
         } else {
             statusLabel.setText("Placed! Now place " + currentShipName() + " (size " + currentShipSize() + ")");
         }
@@ -208,6 +461,30 @@ public class BattleshipGUI {
 
     private void handlePlayerShot(int row, int col) {
         if (gameOver || placementMode) {
+            return;
+        }
+
+        if (onlineMode) {
+            if (!myTurn) {
+                statusLabel.setText("Wait for " + opponentName + "'s turn first.");
+                return;
+            }
+            if (waitingForResult) {
+                statusLabel.setText("Waiting for result of previous shot...");
+                return;
+            }
+            Cell cell = cpuBoard.cells[row][col];
+            if (cell.isHit) {
+                statusLabel.setText("Already fired at " + toCoord(row, col) + ". Pick another cell.");
+                return;
+            }
+            // Mark cell pending and send shot to opponent
+            cell.isHit = true;   // optimistic mark; opponent's RESULT will set hasShip
+            waitingForResult = true;
+            myTurn = false;
+            statusLabel.setText("Fired at " + toCoord(row, col) + "! Waiting for result...");
+            refreshBoards();
+            chatClient.sendGameMove(opponentName, "SHOT:" + row + ":" + col);
             return;
         }
 
@@ -349,7 +626,11 @@ public class BattleshipGUI {
             styleCell(button, "~", new Color(217, 235, 247), Color.BLACK);
         }
 
-        button.setEnabled(!gameOver && !placementMode && !cell.isHit);
+        boolean canFire = !gameOver && !placementMode && !cell.isHit;
+        if (onlineMode) {
+            canFire = canFire && myTurn && !waitingForResult;
+        }
+        button.setEnabled(canFire);
     }
 
     private String currentShipName() {

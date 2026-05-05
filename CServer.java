@@ -305,6 +305,59 @@ public class CServer {
                 return true;
             }
 
+            if (decryptedMessage.startsWith("/game-invite ")) {
+                String args = decryptedMessage.substring("/game-invite ".length()).trim();
+                int sep = args.lastIndexOf(':');
+                if (sep < 0) throw new IllegalArgumentException("Invalid game invite format.");
+                String gameType = args.substring(0, sep).trim();
+                String targetUser = args.substring(sep + 1).trim();
+                if (targetUser.isEmpty()) throw new IllegalArgumentException("Specify a username to invite.");
+                if (targetUser.equalsIgnoreCase(username)) throw new IllegalArgumentException("You cannot invite yourself.");
+                ClientHandler target = onlineClients.get(normalizeUsername(targetUser));
+                if (target == null || !target.joinedRoom) throw new IllegalArgumentException("User '" + targetUser + "' is not online.");
+                target.sendControl("CONTROL:GAME_INVITE:" + gameType + ":" + username);
+                sendNotice("Game invite sent to " + targetUser + ".");
+                return true;
+            }
+
+            if (decryptedMessage.startsWith("/game-accept ")) {
+                String args = decryptedMessage.substring("/game-accept ".length()).trim();
+                int sep = args.lastIndexOf(':');
+                if (sep < 0) throw new IllegalArgumentException("Invalid game accept format.");
+                String gameType = args.substring(0, sep).trim();
+                String fromUser = args.substring(sep + 1).trim();
+                ClientHandler target = onlineClients.get(normalizeUsername(fromUser));
+                if (target != null && target.joinedRoom) {
+                    target.sendControl("CONTROL:GAME_ACCEPT:" + gameType + ":" + username);
+                }
+                return true;
+            }
+
+            if (decryptedMessage.startsWith("/game-decline ")) {
+                String args = decryptedMessage.substring("/game-decline ".length()).trim();
+                int sep = args.lastIndexOf(':');
+                if (sep < 0) return true;
+                String gameType = args.substring(0, sep).trim();
+                String fromUser = args.substring(sep + 1).trim();
+                ClientHandler target = onlineClients.get(normalizeUsername(fromUser));
+                if (target != null && target.joinedRoom) {
+                    target.sendControl("CONTROL:GAME_DECLINE:" + gameType + ":" + username);
+                }
+                return true;
+            }
+
+            if (decryptedMessage.startsWith("/game-move ")) {
+                String rest = decryptedMessage.substring("/game-move ".length()).trim();
+                int sep = rest.indexOf(':');
+                if (sep < 0) throw new IllegalArgumentException("Invalid game move format.");
+                String targetUser = rest.substring(0, sep).trim();
+                String payload = rest.substring(sep + 1);
+                ClientHandler target = onlineClients.get(normalizeUsername(targetUser));
+                if (target == null || !target.joinedRoom) throw new IllegalArgumentException("User '" + targetUser + "' is not online.");
+                target.sendControl("CONTROL:GAME_MOVE:" + username + ":" + payload);
+                return true;
+            }
+
             return false;
         }
 
