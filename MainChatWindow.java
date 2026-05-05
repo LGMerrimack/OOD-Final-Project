@@ -47,7 +47,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private JTextPane chatArea;
     private JTextField inputField;
     private JButton sendButton, clearButton, exportButton, logoutButton, emojiButton;
-    private JButton availableRoomsButton, createRoomButton, deleteRoomButton;
+    private JButton availableRoomsButton, createRoomButton, deleteRoomButton, playBattleshipButton;
     private JButton themeButton, mediaButton;
     private JLabel statusDot, statusText, userLabel, roomLabel, roomTypeLabel;
     private DefaultListModel<String> userListModel = new DefaultListModel<>();
@@ -274,15 +274,19 @@ public class MainChatWindow extends JFrame implements ActionListener {
         availableRoomsButton = GUIStyles.smallButton("Available Rooms");
         createRoomButton = GUIStyles.smallButton("Create Private Room");
         deleteRoomButton = GUIStyles.smallButton("Delete Private Room");
+        playBattleshipButton = GUIStyles.smallButton("Play Battleship");
         availableRoomsButton.addActionListener(this);
         createRoomButton.addActionListener(this);
         deleteRoomButton.addActionListener(this);
+        playBattleshipButton.addActionListener(this);
         availableRoomsButton.setEnabled(false);
         createRoomButton.setEnabled(false);
         deleteRoomButton.setEnabled(false);
+        playBattleshipButton.setEnabled(true);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 6));
         right.setBackground(GUIStyles.current.BG_PANEL);
+        right.add(playBattleshipButton);
         right.add(availableRoomsButton);
         right.add(createRoomButton);
         right.add(deleteRoomButton);
@@ -596,6 +600,9 @@ public class MainChatWindow extends JFrame implements ActionListener {
         deleteRoomButton.setBackground(t.BG_PANEL);
         deleteRoomButton.setForeground(t.TEXT_MUTED);
         deleteRoomButton.setBorder(BorderFactory.createLineBorder(t.BORDER_SOFT, 1));
+        playBattleshipButton.setBackground(t.BG_PANEL);
+        playBattleshipButton.setForeground(t.ACCENT);
+        playBattleshipButton.setBorder(BorderFactory.createLineBorder(t.BORDER_SOFT, 1));
 
         // logout button stays red regardless of theme
         logoutButton.setBackground(t.ERROR);
@@ -652,6 +659,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
             case "Available Rooms" -> promptAvailableRooms();
             case "Create Private Room" -> promptCreatePrivateRoom();
             case "Delete Private Room" -> promptDeletePrivateRoom();
+            case "Play Battleship" -> launchBattleship();
         }
     }
 
@@ -975,6 +983,10 @@ public class MainChatWindow extends JFrame implements ActionListener {
             return;
 
         requestRoomSwitch(roomList.getSelectedValue());
+    }
+
+    private void launchBattleship() {
+        BattleshipGUI.launch(username);
     }
 
     private void promptDeletePrivateRoom() {

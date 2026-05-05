@@ -17,6 +17,7 @@ public class BattleshipGUI {
         {"Destroyer", "2"}
     };
 
+    private final String playerName;
     private final JFrame frame;
     private final JLabel statusLabel;
     private final JButton rotateButton;
@@ -33,11 +34,20 @@ public class BattleshipGUI {
     private int placementShipIndex;
 
     public static void launch() {
-        SwingUtilities.invokeLater(() -> new BattleshipGUI().show());
+        launch("Player");
+    }
+
+    public static void launch(String playerName) {
+        SwingUtilities.invokeLater(() -> new BattleshipGUI(playerName).show());
     }
 
     public BattleshipGUI() {
-        frame = new JFrame("Graph Battleship - Basic GUI");
+        this("Player");
+    }
+
+    public BattleshipGUI(String playerName) {
+        this.playerName = (playerName != null && !playerName.isBlank()) ? playerName : "Player";
+        frame = new JFrame("Graph Battleship — " + this.playerName);
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setLayout(new BorderLayout(10, 10));
 
@@ -177,7 +187,7 @@ public class BattleshipGUI {
 
         if (cpuBoard.allShipsSunk()) {
             gameOver = true;
-            statusLabel.setText("You win! All enemy ships are sunk.");
+            statusLabel.setText(playerName + " wins! All enemy ships are sunk.");
             refreshBoards();
             return;
         }
@@ -204,7 +214,7 @@ public class BattleshipGUI {
 
         if (playerBoard.allShipsSunk()) {
             gameOver = true;
-            statusLabel.setText("CPU wins! Your fleet was sunk.");
+            statusLabel.setText("CPU wins! " + playerName + "'s fleet was sunk.");
             refreshBoards();
         }
     }
