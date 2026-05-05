@@ -567,6 +567,14 @@ public class ChatClient {
         sendMessage("/game-move " + targetUser + ":" + payload);
     }
 
+    /** Returns this client's local LAN IP (used to tell UNO joiners where to connect). */
+    public String getLocalAddress() {
+        if (socket != null && !socket.isClosed()) {
+            return socket.getLocalAddress().getHostAddress();
+        }
+        return "localhost";
+    }
+
     public void disconnect() {
         running = false;
         try {

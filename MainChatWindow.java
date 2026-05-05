@@ -48,6 +48,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private JButton inviteAcceptButton, inviteDeclineButton;
     private String pendingInviteGameType = null;
     private String pendingInviteFromUser = null;
+    private String pendingUnoConnectInfo = null; // "ip:port" sent by host, stored for joiner
 
     private StringBuilder chatLog = new StringBuilder();
     private StyledDocument chatDoc = new DefaultStyledDocument();
@@ -1181,7 +1182,9 @@ public class MainChatWindow extends JFrame implements ActionListener {
     public void handleGameAccept(String gameType, String accepter) {
         String label = gameType.equals("battleship") ? "Battleship" : gameType.toUpperCase();
         appendSystemMessage(accepter + " accepted your " + label + " invite! Launching game...");
-        launchGameAsHost(gameType, accepter);
+        if (!gameType.equals("uno")) {
+            launchGameAsHost(gameType, accepter);
+        }
     }
 
     public void handleGameDecline(String gameType, String decliner) {
@@ -1194,6 +1197,9 @@ public class MainChatWindow extends JFrame implements ActionListener {
     public void handleGameMove(String from, String payload) {
         if (activeBattleshipGame != null) {
             activeBattleshipGame.receiveMove(payload);
+        }
+        if (payload.startsWith("UNO_CONNECT:")) {
+            pendingUnoConnectInfo = payload.substring("UNO_CONNECT:".length());
         }
     }
 
@@ -1220,9 +1226,34 @@ public class MainChatWindow extends JFrame implements ActionListener {
                 activeBattleshipGame.show();
             });
         } else if (gameType.equals("uno")) {
+            String connectInfo = pendingUnoConnectInfo;
+            pendingUnoConnectInfo = null;
+            if (connectInfo == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Did not receive host connection info yet. Please try again shortly.",
+                        "UNO Join Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int lastColon = connectInfo.lastIndexOf(':');
+            if (lastColon < 0) {
+                JOptionPane.showMessageDialog(this, "Invalid host connection info.",
+                        "UNO Join Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String hostIp = connectInfo.substring(0, lastColon);
+            int port;
+            try {
+                port = Integer.parseInt(connectInfo.substring(lastColon + 1));
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Invalid port in connection info.",
+                        "UNO Join Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             SwingUtilities.invokeLater(() -> {
-                try { new UnoGame(); } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Could not launch UNO:\n" + ex.getMessage(),
+                try {
+                    new UnoGame(username, false, hostIp, port);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, "Could not join UNO:\n" + ex.getMessage(),
                             "Launch Error", JOptionPane.ERROR_MESSAGE);
                 }
             });
@@ -1305,6 +1336,18 @@ public class MainChatWindow extends JFrame implements ActionListener {
 
         chatClient.sendGameInvite("uno", opponent);
         appendSystemMessage("UNO invite sent to " + opponent + ". Waiting for them to accept...");
+        // Launch as host immediately on a fixed UNO port, then tell the invitee how to connect
+        String localIp = chatClient.getLocalAddress();
+        String finalOpponent = opponent;
+        SwingUtilities.invokeLater(() -> {
+            try {
+                new UnoGame(username, true, null, 55555);
+                chatClient.sendGameMove(finalOpponent, "UNO_CONNECT:" + localIp + ":55555");
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Could not start UNO host:\n" + ex.getMessage(),
+                        "UNO Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
 
     private void promptDeletePrivateRoom() {
