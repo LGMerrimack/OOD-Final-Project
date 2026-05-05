@@ -1,0 +1,209 @@
+Q: What does CPU stand for?
+A: Central Processing Unit
+B: Computer Primary Unit
+C: Central Program Utility
+D: Control Processing User
+ANSWER: A
+
+Q: Which company created the Java programming language?
+A: Microsoft
+B: Apple
+C: Sun Microsystems
+D: IBM
+ANSWER: C
+
+Q: In binary, what is the decimal value of 1010?
+A: 8
+B: 10
+C: 12
+D: 14
+ANSWER: B
+
+Q: Which protocol is primarily used to load web pages?
+A: FTP
+B: SMTP
+C: HTTP
+D: SSH
+ANSWER: C
+
+Q: What does RAM stand for?
+A: Read Access Memory
+B: Random Access Memory
+C: Rapid Allocation Module
+D: Run Application Memory
+ANSWER: B
+
+Q: Which data structure uses First In, First Out order?
+A: Stack
+B: Queue
+C: Tree
+D: Graph
+ANSWER: B
+
+Q: What does SSD stand for in computing?
+A: Solid State Drive
+B: Serial Storage Disk
+C: System State Device
+D: Secure Storage Drive
+ANSWER: A
+
+Q: Which number system uses base 16?
+A: Binary
+B: Decimal
+C: Octal
+D: Hexadecimal
+ANSWER: D
+
+Q: What is the main function of an operating system?
+A: Design websites
+B: Manage hardware and software resources
+C: Edit videos
+D: Build computer chips
+ANSWER: B
+
+Q: Which symbol starts a single-line comment in Java?
+A: #
+B: --
+C: //
+D: /*
+ANSWER: C
+
+Q: Which of these is a non-volatile memory type?
+A: RAM
+B: Cache
+C: Register
+D: ROM
+ANSWER: D
+
+Q: What does GPU stand for?
+A: Graphics Processing Unit
+B: General Processing Utility
+C: Graphical Program Unit
+D: Global Processor Unit
+ANSWER: A
+
+Q: Which algorithm has average-case time complexity O(n log n)?
+A: Bubble Sort
+B: Insertion Sort
+C: Merge Sort
+D: Linear Search
+ANSWER: C
+
+Q: Which port is the default for HTTPS?
+A: 21
+B: 25
+C: 80
+D: 443
+ANSWER: D
+
+Q: What does DNS do?
+A: Encrypts files
+B: Translates domain names to IP addresses
+C: Scans for viruses
+D: Compresses images
+ANSWER: B
+
+Q: In object-oriented programming, what does inheritance allow?
+A: A class to hide all methods
+B: A class to copy itself at runtime
+C: A class to use properties and methods of another class
+D: A class to run without objects
+ANSWER: C
+
+Q: Which language is primarily used for structuring web page content?
+A: CSS
+B: HTML
+C: SQL
+D: Python
+ANSWER: B
+
+Q: What is the purpose of a firewall?
+A: Increase screen brightness
+B: Manage database tables
+C: Filter network traffic for security
+D: Speed up CPU calculations
+ANSWER: C
+
+Q: Which of these is a version control system?
+A: Docker
+B: Git
+C: Linux
+D: Apache
+ANSWER: B
+
+Q: What does SQL stand for?
+A: Structured Query Language
+B: Simple Question Logic
+C: System Queue Layer
+D: Sequential Query Logic
+ANSWER: A
+
+Q: Which company developed the Windows operating system?
+A: Google
+B: Apple
+C: Microsoft
+D: Oracle
+ANSWER: C
+
+Q: What does LAN stand for?
+A: Local Area Network
+B: Long Access Node
+C: Large Array Network
+D: Linked Application Network
+ANSWER: A
+
+Q: In programming, what is a loop used for?
+A: To permanently delete variables
+B: To repeat a block of code
+C: To create hardware devices
+D: To encrypt user passwords automatically
+ANSWER: B
+
+Q: Which file extension is commonly used for Java source files?
+A: .class
+B: .java
+C: .jar
+D: .js
+ANSWER: B
+
+Q: What is phishing in cybersecurity?
+A: A method of cooling servers
+B: A hardware testing process
+C: A social engineering attack to steal information
+D: A type of database indexing
+ANSWER: C
+
+Q: Which of these is a relational database management system?
+A: PostgreSQL
+B: React
+C: Blender
+D: Figma
+ANSWER: A
+
+Q: What does URL stand for?
+A: Unified Resource Link
+B: Universal Routing Location
+C: Uniform Resource Locator
+D: User Reference Locator
+ANSWER: C
+
+Q: Which command is commonly used to list files in Unix-like systems?
+A: ls
+B: cd
+C: mv
+D: pwd
+ANSWER: A
+
+Q: What is the brain of the computer often called?
+A: GPU
+B: Motherboard
+C: CPU
+D: Hard Drive
+ANSWER: C
+
+Q: Which sorting algorithm repeatedly swaps adjacent out-of-order elements?
+A: Quick Sort
+B: Bubble Sort
+C: Heap Sort
+D: Merge Sort
+ANSWER: B
