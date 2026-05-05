@@ -90,6 +90,7 @@ public class ChatClient {
         }
     }
 
+    
     private static String SERVER_ADDRESS = "10.2.130.243";
     private static final int SERVER_PORT = 3500;
 

@@ -47,7 +47,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private JTextPane chatArea;
     private JTextField inputField;
     private JButton sendButton, clearButton, exportButton, logoutButton, emojiButton;
-    private JButton availableRoomsButton, createRoomButton, deleteRoomButton, playBattleshipButton;
+    private JButton availableRoomsButton, createRoomButton, deleteRoomButton, playBattleshipButton, playUnoButton;
     private JButton themeButton, mediaButton;
     private JButton launchUnoButton, launchWwtbamButton;
     private JLabel statusDot, statusText, userLabel, roomLabel, roomTypeLabel;
@@ -288,17 +288,21 @@ public class MainChatWindow extends JFrame implements ActionListener {
         createRoomButton = GUIStyles.smallButton("Create Private Room");
         deleteRoomButton = GUIStyles.smallButton("Delete Private Room");
         playBattleshipButton = GUIStyles.smallButton("Play Battleship");
+        playUnoButton = GUIStyles.smallButton("Play UNO");
         availableRoomsButton.addActionListener(this);
         createRoomButton.addActionListener(this);
         deleteRoomButton.addActionListener(this);
         playBattleshipButton.addActionListener(this);
+        playUnoButton.addActionListener(this);
         availableRoomsButton.setEnabled(false);
         createRoomButton.setEnabled(false);
         deleteRoomButton.setEnabled(false);
         playBattleshipButton.setEnabled(true);
+        playUnoButton.setEnabled(true);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 6));
         right.setBackground(GUIStyles.current.BG_PANEL);
+        right.add(playUnoButton);
         right.add(playBattleshipButton);
         right.add(availableRoomsButton);
         right.add(createRoomButton);
@@ -616,6 +620,9 @@ public class MainChatWindow extends JFrame implements ActionListener {
         playBattleshipButton.setBackground(t.BG_PANEL);
         playBattleshipButton.setForeground(t.ACCENT);
         playBattleshipButton.setBorder(BorderFactory.createLineBorder(t.BORDER_SOFT, 1));
+        playUnoButton.setBackground(t.BG_PANEL);
+        playUnoButton.setForeground(t.ACCENT);
+        playUnoButton.setBorder(BorderFactory.createLineBorder(t.BORDER_SOFT, 1));
 
         // logout button stays red regardless of theme
         logoutButton.setBackground(t.ERROR);
@@ -673,6 +680,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
             case "Create Private Room" -> promptCreatePrivateRoom();
             case "Delete Private Room" -> promptDeletePrivateRoom();
             case "Play Battleship" -> launchBattleship();
+            case "Play UNO" -> launchUno();
             case "UNO" -> launchUnoGame();
             case "WWTBAM" -> launchWwtbamGame();
         }
@@ -1066,6 +1074,75 @@ public class MainChatWindow extends JFrame implements ActionListener {
 
     private void launchBattleship() {
         BattleshipGUI.launchWithStartChoice(username, this::promptBattleshipInvite);
+    }
+
+    private void launchUno() {
+        SwingUtilities.invokeLater(() -> {
+            Object[] options = {"Invite Online Player", "Play By Myself", "Cancel"};
+            int choice = JOptionPane.showOptionDialog(
+                    this,
+                    "How would you like to start UNO?",
+                    "Start UNO",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[1]);
+
+            if (choice == JOptionPane.CLOSED_OPTION || choice == 2)
+                return;
+
+            if (choice == 0)
+                promptUnoInvite();
+
+            try {
+                new UnoGame();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this,
+                        "Could not launch UNO:\n" + ex.getMessage(),
+                        "Launch Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
+
+    private void promptUnoInvite() {
+        JTextField userField = new JTextField();
+        GUIStyles.styleField(userField);
+
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBackground(GUIStyles.current.BG_PANEL);
+
+        JLabel userHint = new JLabel("Enter the username to challenge:");
+        userHint.setFont(GUIStyles.FONT_SMALL);
+        userHint.setForeground(GUIStyles.current.TEXT_MUTED);
+        JLabel infoHint = new JLabel("They must be online. An invite will appear in the chat.");
+        infoHint.setFont(GUIStyles.FONT_TINY);
+        infoHint.setForeground(GUIStyles.current.TEXT_MUTED);
+
+        form.add(userHint);
+        form.add(Box.createVerticalStrut(4));
+        form.add(userField);
+        form.add(Box.createVerticalStrut(4));
+        form.add(infoHint);
+
+        int result = JOptionPane.showConfirmDialog(this, form,
+                "Invite to UNO", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION)
+            return;
+
+        String opponent = userField.getText().trim();
+        if (opponent.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Username is required.");
+            return;
+        }
+
+        String invite = "@" + opponent + " \u2014 " + username
+                + " is challenging you to a game of UNO! Open the game from chat to play.";
+        if (connected && chatClient != null) {
+            chatClient.sendMessage(invite);
+        }
+        appendSystemMessage("UNO invite sent to " + opponent + ".");
     }
 
     private void promptDeletePrivateRoom() {
