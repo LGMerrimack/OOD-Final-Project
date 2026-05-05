@@ -933,6 +933,46 @@ public class MainChatWindow extends JFrame implements ActionListener {
         chatClient.inviteUserToCurrentRoom(invitedUsername);
     }
 
+    private void promptBattleshipInvite() {
+        JTextField userField = new JTextField();
+        GUIStyles.styleField(userField);
+
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBackground(GUIStyles.current.BG_PANEL);
+
+        JLabel userHint = new JLabel("Enter the username to challenge:");
+        userHint.setFont(GUIStyles.FONT_SMALL);
+        userHint.setForeground(GUIStyles.current.TEXT_MUTED);
+        JLabel infoHint = new JLabel("They must be online. An invite will appear in the chat.");
+        infoHint.setFont(GUIStyles.FONT_TINY);
+        infoHint.setForeground(GUIStyles.current.TEXT_MUTED);
+
+        form.add(userHint);
+        form.add(Box.createVerticalStrut(4));
+        form.add(userField);
+        form.add(Box.createVerticalStrut(4));
+        form.add(infoHint);
+
+        int result = JOptionPane.showConfirmDialog(this, form,
+                "Invite to Battleship", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION)
+            return;
+
+        String opponent = userField.getText().trim();
+        if (opponent.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Username is required.");
+            return;
+        }
+
+        String invite = "@" + opponent + " — " + username
+                + " is challenging you to a game of Battleship! Open the game from chat to play.";
+        if (connected && chatClient != null) {
+            chatClient.sendMessage(invite);
+        }
+        appendSystemMessage("Battleship invite sent to " + opponent + ".");
+    }
+
     private void promptAvailableRooms() {
         if (!connected || chatClient == null)
             return;
@@ -986,7 +1026,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
     }
 
     private void launchBattleship() {
-        BattleshipGUI.launch(username);
+        BattleshipGUI.launchWithStartChoice(username, this::promptBattleshipInvite);
     }
 
     private void promptDeletePrivateRoom() {

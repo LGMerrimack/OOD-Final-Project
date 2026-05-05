@@ -20,6 +20,7 @@ public class BattleshipGUI {
     private final String playerName;
     private final JFrame frame;
     private final JLabel statusLabel;
+    private JLabel enemyFleetLabel;
     private final JButton rotateButton;
 
     private final JButton[][] playerButtons;
@@ -34,11 +35,44 @@ public class BattleshipGUI {
     private int placementShipIndex;
 
     public static void launch() {
-        launch("Player");
+        launchWithStartChoice("Player", null);
     }
 
     public static void launch(String playerName) {
-        SwingUtilities.invokeLater(() -> new BattleshipGUI(playerName).show());
+        launchWithStartChoice(playerName, null);
+    }
+
+    public static void launchWithStartChoice(String playerName, Runnable inviteAction) {
+        SwingUtilities.invokeLater(() -> {
+            Object[] options = {"Invite Online Player", "Play By Myself", "Cancel"};
+            int choice = JOptionPane.showOptionDialog(
+                    null,
+                    "How would you like to start Battleship?",
+                    "Start Battleship",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[1]);
+
+            if (choice == JOptionPane.CLOSED_OPTION || choice == 2) {
+                return;
+            }
+
+            if (choice == 0) {
+                if (inviteAction != null) {
+                    inviteAction.run();
+                } else {
+                    JOptionPane.showMessageDialog(
+                            null,
+                            "Online invites are available from the chat window.",
+                            "Invite Online Player",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+
+            new BattleshipGUI(playerName).show();
+        });
     }
 
     public BattleshipGUI() {
@@ -52,8 +86,16 @@ public class BattleshipGUI {
         frame.setLayout(new BorderLayout(10, 10));
 
         statusLabel = new JLabel("Click a cell on ENEMY WATERS to fire.", SwingConstants.CENTER);
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        frame.add(statusLabel, BorderLayout.NORTH);
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(6, 8, 2, 8));
+
+        enemyFleetLabel = new JLabel("Enemy Fleet: —", SwingConstants.CENTER);
+        enemyFleetLabel.setFont(enemyFleetLabel.getFont().deriveFont(12f));
+        enemyFleetLabel.setBorder(BorderFactory.createEmptyBorder(2, 8, 6, 8));
+
+        JPanel northPanel = new JPanel(new BorderLayout());
+        northPanel.add(statusLabel, BorderLayout.NORTH);
+        northPanel.add(enemyFleetLabel, BorderLayout.SOUTH);
+        frame.add(northPanel, BorderLayout.NORTH);
 
         playerButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
         cpuButtons = new JButton[BoardGraph.SIZE][BoardGraph.SIZE];
@@ -132,6 +174,7 @@ public class BattleshipGUI {
         placementShipIndex = 0;
 
         placeFleetRandom(cpuBoard);
+        updateEnemyFleetStatus();
 
         updateRotateButtonText();
         statusLabel.setText("Place " + currentShipName() + " (size " + currentShipSize() + ")");
@@ -174,13 +217,17 @@ public class BattleshipGUI {
             return;
         }
 
+        Ship justSunk = null;
         if (result == BoardGraph.FireResult.MISS) {
             statusLabel.setText("You missed at " + toCoord(row, col) + ". CPU turn...");
         } else if (result == BoardGraph.FireResult.HIT) {
             statusLabel.setText("Hit at " + toCoord(row, col) + "!");
         } else {
-            Ship sunk = cpuBoard.cells[row][col].ship;
-            statusLabel.setText("You sunk CPU's " + sunk.name + "!");
+            justSunk = cpuBoard.cells[row][col].ship;
+            long remaining = cpuBoard.getShips().stream().filter(s -> !s.isSunk()).count();
+            statusLabel.setText("You sunk CPU's " + justSunk.name + "! ("
+                    + remaining + " enemy ship" + (remaining == 1 ? "" : "s") + " remaining)");
+            updateEnemyFleetStatus();
         }
 
         refreshBoards();
@@ -189,7 +236,19 @@ public class BattleshipGUI {
             gameOver = true;
             statusLabel.setText(playerName + " wins! All enemy ships are sunk.");
             refreshBoards();
+            JOptionPane.showMessageDialog(frame,
+                    "You sunk the enemy " + justSunk.name + "!\nAll enemy ships have been destroyed!\n"
+                    + playerName + " wins!",
+                    "Victory!", JOptionPane.INFORMATION_MESSAGE);
             return;
+        }
+
+        if (justSunk != null) {
+            long remaining = cpuBoard.getShips().stream().filter(s -> !s.isSunk()).count();
+            JOptionPane.showMessageDialog(frame,
+                    "You sunk the enemy " + justSunk.name + "!\n"
+                    + remaining + " enemy ship" + (remaining == 1 ? "" : "s") + " still remaining.",
+                    "Enemy Ship Sunk!", JOptionPane.WARNING_MESSAGE);
         }
 
         runCpuTurn();
@@ -199,13 +258,16 @@ public class BattleshipGUI {
         int[] shot = cpuBot.getNextShot(playerBoard);
         BoardGraph.FireResult result = playerBoard.fire(shot[0], shot[1]);
 
+        Ship justSunk = null;
         if (result == BoardGraph.FireResult.HIT) {
             cpuBot.registerHit(playerBoard, shot[0], shot[1]);
             statusLabel.setText("CPU hits your ship at " + toCoord(shot[0], shot[1]) + ". Your turn.");
         } else if (result == BoardGraph.FireResult.SUNK) {
             cpuBot.registerSunk();
-            Ship sunk = playerBoard.cells[shot[0]][shot[1]].ship;
-            statusLabel.setText("CPU sunk your " + sunk.name + " at " + toCoord(shot[0], shot[1]) + ". Your turn.");
+            justSunk = playerBoard.cells[shot[0]][shot[1]].ship;
+            long remaining = playerBoard.getShips().stream().filter(s -> !s.isSunk()).count();
+            statusLabel.setText("CPU sunk your " + justSunk.name + " at " + toCoord(shot[0], shot[1])
+                    + "! (" + remaining + " of your ships remaining)");
         } else {
             statusLabel.setText("CPU missed at " + toCoord(shot[0], shot[1]) + ". Your turn.");
         }
@@ -216,7 +278,37 @@ public class BattleshipGUI {
             gameOver = true;
             statusLabel.setText("CPU wins! " + playerName + "'s fleet was sunk.");
             refreshBoards();
+            JOptionPane.showMessageDialog(frame,
+                    "CPU sunk your " + justSunk.name + "!\nAll your ships have been destroyed!\nCPU wins!",
+                    "Defeat!", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        if (justSunk != null) {
+            long remaining = playerBoard.getShips().stream().filter(s -> !s.isSunk()).count();
+            JOptionPane.showMessageDialog(frame,
+                    "CPU sunk your " + justSunk.name + "!\n"
+                    + remaining + " of your ship" + (remaining == 1 ? "" : "s") + " remaining.",
+                    "Your Ship Sunk!", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void updateEnemyFleetStatus() {
+        if (cpuBoard == null) {
+            enemyFleetLabel.setText("Enemy Fleet: —");
+            return;
+        }
+        StringBuilder sb = new StringBuilder("<html><center><b>Enemy Fleet:</b>&nbsp;&nbsp;");
+        for (Ship ship : cpuBoard.getShips()) {
+            if (ship.isSunk()) {
+                sb.append("<font color='#cc3333'><strike>").append(ship.name).append("</strike></font>");
+            } else {
+                sb.append("<font color='#2a7a2a'>").append(ship.name).append("</font>");
+            }
+            sb.append("&nbsp;&nbsp;");
+        }
+        sb.append("</center></html>");
+        enemyFleetLabel.setText(sb.toString());
     }
 
     private void refreshBoards() {
