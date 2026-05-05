@@ -885,9 +885,17 @@ public class UnoGame extends JFrame {
         setInfo("Hosting on port " + port + ". Waiting for players... (1/" + MAX_PLAYERS + ")");
         appendChat("[System]: You are the host. Share your IP and port " + port + " with friends.");
 
+        // Create the ServerSocket synchronously so it is ready before UNO_CONNECT is sent
+        try {
+            serverSocket = new ServerSocket(port);
+        } catch (IOException e) {
+            setInfo("Could not start server on port " + port + ": " + e.getMessage());
+            appendChat("[System]: Failed to start server — " + e.getMessage());
+            return;
+        }
+
         new Thread(() -> {
             try {
-                serverSocket = new ServerSocket(port);
                 while (players.size() < MAX_PLAYERS) {
                     Socket client = serverSocket.accept();
                     ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
@@ -896,20 +904,26 @@ public class UnoGame extends JFrame {
                     clientOuts.add(out);
 
                     String joinName = (String) in.readObject();
+                    int newPlayerIndex = players.size(); // index this client will have
                     players.add(new PlayerInfo(joinName, false));
+                    // Tell the client its own player index
+                    out.writeObject(newPlayerIndex);
+                    out.flush();
                     SwingUtilities.invokeLater(() -> {
                         setInfo(joinName + " joined! (" + players.size() + "/" + MAX_PLAYERS
                                 + ") — Host: press Start when ready.");
                         appendChat("[System]: " + joinName + " joined the game.");
                         refreshOtherPlayers();
                     });
-                    new Thread(() -> listenToClient(in)).start();
+                    new Thread(() -> listenToClient(in, newPlayerIndex)).start();
 
                     if (players.size() == MAX_PLAYERS)
                         break;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                if (serverSocket != null && !serverSocket.isClosed()) {
+                    e.printStackTrace();
+                }
             }
         }).start();
 
@@ -965,6 +979,11 @@ public class UnoGame extends JFrame {
                 ObjectInputStream in = new ObjectInputStream(hostSocket.getInputStream());
                 hostOut.writeObject(name);
                 hostOut.flush();
+                // Receive our player index from the host
+                Object idxObj = in.readObject();
+                if (idxObj instanceof Integer idx) {
+                    localPlayerIndex = idx;
+                }
                 SwingUtilities.invokeLater(() -> {
                     setInfo("Connected! Waiting for host to start...");
                     appendChat("[System]: Connected! Waiting for host to start the game.");
@@ -1065,11 +1084,11 @@ public class UnoGame extends JFrame {
         }
     }
 
-    private void listenToClient(ObjectInputStream in) {
+    private void listenToClient(ObjectInputStream in, int playerIndex) {
         try {
             while (true) {
                 NetMessage msg = (NetMessage) in.readObject();
-                SwingUtilities.invokeLater(() -> handleClientMessage(msg));
+                SwingUtilities.invokeLater(() -> handleClientMessage(msg, playerIndex));
             }
         } catch (Exception e) {
             /* client disconnected */
@@ -1092,9 +1111,21 @@ public class UnoGame extends JFrame {
         }
     }
 
-    private void handleClientMessage(NetMessage msg) {
+    private void handleClientMessage(NetMessage msg, int senderIndex) {
         switch (msg.type) {
-            case PLAY_CARD -> performPlay((Card) msg.payload, null);
+            case PLAY_CARD -> {
+                Card remoteCard = (Card) msg.payload;
+                if (senderIndex >= 0 && senderIndex < players.size()) {
+                    PlayerInfo sender = players.get(senderIndex);
+                    // Match by color+type because the deserialized card is a different instance
+                    Card actualCard = sender.hand.stream()
+                            .filter(c -> c.color == remoteCard.color && c.type == remoteCard.type)
+                            .findFirst().orElse(null);
+                    if (actualCard != null) {
+                        performPlay(actualCard, sender);
+                    }
+                }
+            }
             case DRAW_CARD -> performDraw();
             case CHOOSE_COLOR -> {
                 activeWildColor = (CardColor) msg.payload;
