@@ -40,6 +40,7 @@ class MainChatWindow {
   -chatDoc: StyledDocument
   -emojiCache: Map<String, ImageIcon>
   -logo: Image
+  -knownRooms: List<ChatClient.RoomInfo>
   -chatArea: JTextPane
   -inputField: JTextField
   -sendButton: JButton
@@ -47,10 +48,16 @@ class MainChatWindow {
   -exportButton: JButton
   -logoutButton: JButton
   -emojiButton: JButton
-  -UploadFileButton: JButton
+  -themeButton: JButton
+  -mediaButton: JButton
+  -launchUnoButton: JButton
+  -launchWwtbamButton: JButton
+  -playBattleshipButton: JButton
+  -playUnoButton: JButton
+  -serverDropdownBtn: JButton
   -createRoomButton: JButton
-  -uploadRoomFileButton: JButton
   -deleteRoomButton: JButton
+  -availableRoomsButton: JButton
   -statusDot: JLabel
   -statusText: JLabel
   -userLabel: JLabel
@@ -59,8 +66,10 @@ class MainChatWindow {
   -userListModel: DefaultListModel<String>
   +MainChatWindow(username: String)
   +setChatClient(c: ChatClient): void
+  +setKnownRooms(rooms: List<ChatClient.RoomInfo>): void
   +actionPerformed(e: ActionEvent): void
   +appendMessage(sender: String, message: String): void
+  +appendImageMessage(sender: String, imageFile: File): void
   +appendSystemMessage(message: String): void
   +setCurrentRoom(roomName: String, privateRoom: boolean, owner: boolean): void
   +resetUsers(selfName: String): void
@@ -75,6 +84,7 @@ class MainChatWindow {
   -buildUsersPanel(): JPanel
   -buildInputBar(): JPanel
   -showEmojiPicker(): void
+  -showRoomPopup(): void
   -sendMessage(): void
   -promptUploadFile(): void
   -appendFormatted(sender: String, ts: String, text: String): void
@@ -82,6 +92,16 @@ class MainChatWindow {
   -exportLog(): void
   -promptCreatePrivateRoom(): void
   -promptDeletePrivateRoom(): void
+  -promptAvailableRooms(): void
+  -promptInviteUser(): void
+  -promptBattleshipInvite(): void
+  -promptUnoInvite(): void
+  -launchBattleship(): void
+  -launchUno(): void
+  -launchUnoGame(): void
+  -launchWwtbamGame(): void
+  -requestRoomSwitch(room: ChatClient.RoomInfo): void
+  -toggleTheme(): void
   -updateRoomButtons(): void
   -confirmLogout(): void
   -confirmExit(): void
@@ -109,8 +129,9 @@ class ChatClient {
   -listenLoop(): void
   -handleControlMessage(line: String): void
   +sendMessage(plaintext: String): void
-  +sendFile(file: File): void
+  +sendFile(file: File): boolean
   +createPrivateRoom(roomName: String): void
+  +inviteUserToCurrentRoom(invitedUsername: String): void
   +deleteCurrentPrivateRoom(): void
   +disconnect(): void
   -notifySystem(msg: String): void
@@ -225,6 +246,9 @@ class ChatRoom {
 }
 
 class GUIStyles {
+  +DARK: Theme
+  +LIGHT: Theme
+  +current: Theme
   +button(text: String, bg: Color, fg: Color): JButton
   +smallButton(text: String): JButton
   +tabButton(text: String, active: boolean): JButton
@@ -233,6 +257,109 @@ class GUIStyles {
   +errorLabel(): JLabel
   +loadImage(filename: String): Image
   +paintWatermark(g: Graphics, logo: Image, panelW: int, panelH: int, opacity: float): void
+  +toggle(): void
+}
+
+class "GUIStyles.Theme" as Theme {
+  +BG_DARK: Color
+  +BG_CARD: Color
+  +ACCENT: Color
+  +TEXT_PRIMARY: Color
+  +ERROR: Color
+  +SUCCESS: Color
+  +name: String
+  +Theme(name: String, ...)
+}
+
+class Battleship {
+  +main(args: String[]): void
+}
+
+class BattleshipGame {
+  -FLEET: String[][]
+  +main(args: String[]): void
+  -playSinglePlayer(): void
+  -playMultiplayer(): void
+  -setupFleet(board: BoardGraph, name: String): void
+  -placeFleetRandom(board: BoardGraph): void
+  -promptShot(board: BoardGraph, name: String): int[]
+}
+
+class BattleshipGUI {
+  -FLEET: String[][]
+  -playerName: String
+  -frame: JFrame
+  -playerBoard: BoardGraph
+  -cpuBoard: BoardGraph
+  -cpuBot: BattleshipBot
+  -gameOver: boolean
+  -placementMode: boolean
+  -placementHorizontal: boolean
+  -placementShipIndex: int
+  +launch(): void
+  +launch(playerName: String): void
+  +launchWithStartChoice(playerName: String, inviteAction: Runnable): void
+  +BattleshipGUI(): void
+  +BattleshipGUI(playerName: String)
+  +show(): void
+  -startNewGame(): void
+}
+
+class BattleshipBot {
+  -targetQueue: Queue<int[]>
+  -fired: Set<String>
+  -random: Random
+  +BattleshipBot()
+  +getNextShot(opponentBoard: BoardGraph): int[]
+  +registerHit(opponentBoard: BoardGraph, row: int, col: int): void
+  +registerSunk(): void
+}
+
+class BoardGraph {
+  +SIZE: int
+  +cells: Cell[][]
+  -ships: List<Ship>
+  +BoardGraph()
+  +placeShip(ship: Ship, startRow: int, startCol: int, horizontal: boolean): boolean
+  +fire(row: int, col: int): FireResult
+  +allShipsSunk(): boolean
+}
+
+class Cell {
+  +row: int
+  +col: int
+  +hasShip: boolean
+  +isHit: boolean
+  +ship: Ship
+  +neighbors: List<Cell>
+  +Cell(row: int, col: int)
+}
+
+class Ship {
+  +name: String
+  +size: int
+  +cells: List<Cell>
+  +Ship(name: String, size: int)
+  +isSunk(): boolean
+  +hitCount(): int
+}
+
+class GameWWTBAM {
+  -PRIZE_VALUES: int[]
+  -gameQuestions: List<Question>
+  -currentIndex: int
+  -winnings: int
+  -gameActive: boolean
+  +main(args: String[]): void
+  +GameWWTBAM()
+  -startGame(): void
+  -buildTopBar(): JPanel
+  -buildBody(): JPanel
+}
+
+class UnoGame {
+  +main(args: String[]): void
+  +UnoGame()
 }
 
 CClient --> LoginWindow : launches
@@ -243,6 +370,9 @@ LoginWindow --> ChatClient : creates
 MainChatWindow --> GUIStyles : uses
 MainChatWindow --> ChatClient : holds reference
 MainChatWindow ..> RoomInfo : chooses room
+MainChatWindow --> BattleshipGUI : launches
+MainChatWindow --> UnoGame : launches
+MainChatWindow --> GameWWTBAM : launches
 ChatClient --> AuthenticationManager : validates + hashes
 ChatClient --> EncryptionManager : encrypt/decrypt
 ChatClient --> MainChatWindow : updates UI
@@ -251,11 +381,20 @@ AuthenticationManager *-- AuthResult
 EncryptionManager *-- EncryptionStrategy
 EncryptionStrategy <|.. AESEncryptionStrategy
 EncryptionStrategy <|.. NoEncryptionStrategy
+GUIStyles *-- Theme
 CServer *-- ClientHandler
 CServer *-- ChatRoom
 ClientHandler --> AuthenticationManager : authenticate
 ClientHandler --> EncryptionManager : encrypt/decrypt
 ClientHandler --> ChatRoom : join / leave / broadcast / switch
 ChatRoom --> PrintWriter : stores client outputs
+Battleship --> BattleshipGUI : launches
+BattleshipGame --> BattleshipGUI : launches
+BattleshipGUI --> BoardGraph : uses
+BattleshipGUI --> BattleshipBot : uses
+BattleshipBot --> BoardGraph : reads
+BoardGraph *-- Cell
+BoardGraph *-- Ship
+Cell --> Ship : references
 
 @enduml

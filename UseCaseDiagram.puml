@@ -20,13 +20,21 @@ rectangle "Secure Chat System" {
   usecase "View Online Users" as UC13
   usecase "Create Private Room" as UC14
   usecase "Delete Private Room" as UC15
-  usecase "Use Emojis" as UC16
-  usecase "Export Chat Log" as UC17
-  usecase "Clear Chat Display" as UC18
-  usecase "Logout / Disconnect" as UC19
-  usecase "Start Server" as UC20
-  usecase "Manage Client Connections" as UC21
-  usecase "Broadcast Room Messages" as UC22
+  usecase "Invite User to Private Room" as UC16
+  usecase "Use Emojis" as UC17
+  usecase "Export Chat Log" as UC18
+  usecase "Clear Chat Display" as UC19
+  usecase "Upload and Share Image" as UC20
+  usecase "Logout / Disconnect" as UC21
+  usecase "Toggle Light/Dark Theme" as UC22
+  usecase "Start Server" as UC23
+  usecase "Manage Client Connections" as UC24
+  usecase "Broadcast Room Messages" as UC25
+  usecase "Play Battleship" as UC26
+  usecase "Invite Player to Battleship" as UC27
+  usecase "Play UNO" as UC28
+  usecase "Invite Player to UNO" as UC29
+  usecase "Play Who Wants to Be a Millionaire" as UC30
 }
 
 User --> UC1
@@ -46,10 +54,18 @@ User --> UC16
 User --> UC17
 User --> UC18
 User --> UC19
+User --> UC20
+User --> UC21
+User --> UC22
+User --> UC26
+User --> UC27
+User --> UC28
+User --> UC29
+User --> UC30
 
-Admin --> UC20
-Admin --> UC21
-Admin --> UC22
+Admin --> UC23
+Admin --> UC24
+Admin --> UC25
 
 UC5 .> UC3 : <<include>>
 UC6 .> UC3 : <<include>>
@@ -59,8 +75,15 @@ UC10 .> UC8 : <<include>>
 UC10 .> UC9 : <<include>>
 UC11 .> UC10 : <<include>>
 UC12 .> UC10 : <<include>>
-UC21 .> UC22 : <<include>>
+UC24 .> UC25 : <<include>>
 UC14 .> UC10 : <<include>>
 UC15 .> UC10 : <<include>>
+UC16 .> UC14 : <<include>>
+UC26 .> UC10 : <<extend>>
+UC27 .> UC26 : <<extend>>
+UC27 .> UC11 : <<include>>
+UC28 .> UC10 : <<extend>>
+UC29 .> UC28 : <<extend>>
+UC29 .> UC11 : <<include>>
 
 @enduml

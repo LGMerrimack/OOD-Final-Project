@@ -10,6 +10,11 @@ participant ClientHandler
 participant AuthenticationManager
 participant ChatRoom
 participant EncryptionManager
+participant BattleshipGUI
+participant BattleshipBot
+participant BoardGraph
+participant UnoGame
+participant GameWWTBAM
 
 User -> CClient : run application
 CClient -> LoginWindow : getInstance()
@@ -48,6 +53,7 @@ alt auth success
   ClientHandler -> ChatClient : AUTH_OK
   ClientHandler -> ChatClient : ROOMS_BEGIN ... ROOMS_END
   ChatClient -> ChatClient : readRoomList()
+  ChatClient -> MainChatWindow : setKnownRooms(availableRooms)
   ChatClient -> MainChatWindow : chooseRoom(availableRooms)
   MainChatWindow --> ChatClient : selected RoomInfo
   ChatClient -> ClientHandler : selected room number
@@ -84,6 +90,14 @@ ChatClient -> EncryptionManager : decryptMessage(ciphertext)
 EncryptionManager --> ChatClient : decrypted message
 ChatClient -> MainChatWindow : appendMessage(sender, message)
 
+opt upload image file
+  User -> MainChatWindow : click Upload File
+  MainChatWindow -> ChatClient : sendFile(file)
+  ChatClient -> ClientHandler : file chunks
+  ClientHandler -> ChatRoom : broadcastEncrypted(file data)
+  ChatClient -> MainChatWindow : appendImageMessage(sender, imageFile)
+end
+
 opt create private room
   User -> MainChatWindow : click Create Private Room
   MainChatWindow -> ChatClient : createPrivateRoom(roomName)
@@ -99,6 +113,13 @@ opt create private room
   ClientHandler -> ChatClient : CONTROL:ROOM_SYNC:...
 end
 
+opt invite user to private room
+  User -> MainChatWindow : click Invite User
+  MainChatWindow -> ChatClient : inviteUserToCurrentRoom(invitedUsername)
+  ChatClient -> ClientHandler : encrypted "/invite <user>"
+  ClientHandler -> ChatRoom : broadcastEncrypted(invite notice)
+end
+
 opt delete private room
   User -> MainChatWindow : click Delete Private Room
   MainChatWindow -> ChatClient : deleteCurrentPrivateRoom()
@@ -110,6 +131,47 @@ opt delete private room
   ClientHandler -> ChatRoom : switch back to default room
   ClientHandler -> CServer : deleteRoom(oldPrivateRoom)
   ClientHandler -> ChatClient : CONTROL:NOTICE:Private room deleted
+end
+
+opt launch Battleship
+  User -> MainChatWindow : click Play Battleship
+  MainChatWindow -> BattleshipGUI : launchWithStartChoice(username, inviteAction)
+  BattleshipGUI -> BoardGraph : create player and CPU boards
+  BattleshipGUI -> BattleshipBot : new BattleshipBot()
+  opt invite online opponent
+    User -> BattleshipGUI : choose "Invite Online Player"
+    BattleshipGUI -> MainChatWindow : inviteAction.run()
+    MainChatWindow -> ChatClient : sendMessage(battleship invite)
+    ChatClient -> ClientHandler : encrypted invite message
+    ClientHandler -> ChatRoom : broadcastEncrypted(invite)
+  end
+  User -> BattleshipGUI : click cell to fire
+  BattleshipGUI -> BoardGraph : fire(row, col)
+  BoardGraph --> BattleshipGUI : FireResult
+  BattleshipGUI -> BattleshipBot : getNextShot(playerBoard)
+  BattleshipBot --> BattleshipGUI : shot coordinates
+  BattleshipGUI -> BoardGraph : fire(row, col) on player board
+end
+
+opt launch UNO
+  User -> MainChatWindow : click Play UNO / UNO button
+  MainChatWindow -> UnoGame : new UnoGame()
+  opt invite online opponent
+    User -> MainChatWindow : choose "Invite Online Player"
+    MainChatWindow -> ChatClient : sendMessage(uno invite)
+    ChatClient -> ClientHandler : encrypted invite message
+    ClientHandler -> ChatRoom : broadcastEncrypted(invite)
+  end
+end
+
+opt launch Who Wants to Be a Millionaire
+  User -> MainChatWindow : click WWTBAM button
+  MainChatWindow -> GameWWTBAM : new GameWWTBAM()
+end
+
+opt toggle theme
+  User -> MainChatWindow : click theme button
+  MainChatWindow -> GUIStyles : toggle()
 end
 
 User -> MainChatWindow : logout
