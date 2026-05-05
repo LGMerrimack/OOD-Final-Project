@@ -53,9 +53,12 @@ public class AuthenticationManager {
     }
 
     public static AuthResult loginUserWithHash(String username, String transmittedHash) {
+        File file = new File(USERS_FILE);
+        if (!file.exists())
+            return new AuthResult(false, "No user accounts exist yet. Please register.");
         HashMap<String, String> users = loadUsers();
         if (users.isEmpty())
-            return new AuthResult(false, "User database not found.");
+            return new AuthResult(false, "No registered accounts found. Please register.");
         if (!users.containsKey(username))
             return new AuthResult(false, "Username not found.");
         if (!users.get(username).equals(transmittedHash))
@@ -68,8 +71,14 @@ public class AuthenticationManager {
         if (users.containsKey(username))
             return new AuthResult(false, "Username already taken.");
 
-        try (FileWriter fw = new FileWriter(USERS_FILE, true)) {
-            fw.write("\n" + username + ":" + transmittedHash);
+        File file = new File(USERS_FILE);
+        boolean isNewFile = !file.exists() || file.length() == 0;
+        try (FileWriter fw = new FileWriter(file, true)) {
+            if (isNewFile) {
+                fw.write(username + ":" + transmittedHash);
+            } else {
+                fw.write("\n" + username + ":" + transmittedHash);
+            }
             return new AuthResult(true, "Account created. Welcome, " + username + "!");
         } catch (IOException e) {
             return new AuthResult(false, "Could not save account: " + e.getMessage());

@@ -19,6 +19,17 @@ public class CServer {
     public static void main(String[] args) {
         int port = 3500; // Port to listen on; must match the port used in client
 
+        // Ensure users.txt exists so login/register works from the start
+        java.io.File usersFile = new java.io.File("users.txt");
+        if (!usersFile.exists()) {
+            try {
+                usersFile.createNewFile();
+                System.out.println("Created users.txt");
+            } catch (java.io.IOException e) {
+                System.err.println("Warning: could not create users.txt — " + e.getMessage());
+            }
+        }
+
         rooms.add(new ChatRoom(DEFAULT_ROOM_NAME));
         rooms.add(new ChatRoom("Gaming"));
         rooms.add(new ChatRoom("Tech"));

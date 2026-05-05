@@ -122,7 +122,8 @@ public class ChatClient {
 
     public void connect() {
         try {
-            socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(SERVER_ADDRESS, SERVER_PORT), 10000);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             output = new PrintWriter(socket.getOutputStream(), true);
 
@@ -159,7 +160,8 @@ public class ChatClient {
 
                 } else if (line.equals("Enter room number:") ||
                         line.startsWith("Invalid choice")) {
-                    selectedRoom = chatWindow.chooseRoom(availableRooms);
+                    // Auto-join General (room 1) — user can switch via Available Rooms after connecting
+                    selectedRoom = availableRooms.isEmpty() ? null : availableRooms.get(0);
                     if (selectedRoom == null) {
                         notifySystem("No rooms are available.");
                         disconnect();
