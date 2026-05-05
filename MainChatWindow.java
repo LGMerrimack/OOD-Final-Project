@@ -42,6 +42,13 @@ public class MainChatWindow extends JFrame implements ActionListener {
     private BattleshipGUI activeBattleshipGame = null;
     private String pendingBattleshipOpponent = null;  // waiting for this user to accept
 
+    // incoming invite notification
+    private JPanel inviteNotificationPanel;
+    private JLabel inviteNotificationLabel;
+    private JButton inviteAcceptButton, inviteDeclineButton;
+    private String pendingInviteGameType = null;
+    private String pendingInviteFromUser = null;
+
     private StringBuilder chatLog = new StringBuilder();
     private StyledDocument chatDoc = new DefaultStyledDocument();
     private final Map<String, ImageIcon> emojiCache = new HashMap<>();
@@ -84,7 +91,7 @@ public class MainChatWindow extends JFrame implements ActionListener {
 
         add(buildTopBar(), BorderLayout.NORTH);
         add(buildBody(), BorderLayout.CENTER);
-        add(buildInputBar(), BorderLayout.SOUTH);
+        add(buildInviteBar(), BorderLayout.SOUTH);
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -257,6 +264,79 @@ public class MainChatWindow extends JFrame implements ActionListener {
         popup.add(createItem);
         popup.add(inviteItem);
         popup.show(serverDropdownBtn, 0, serverDropdownBtn.getHeight() + 2);
+    }
+
+    // invite notification bar (hidden until an invite arrives)
+    private JPanel buildInviteBar() {
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+
+        // notification banner
+        inviteNotificationPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 6));
+        inviteNotificationPanel.setBackground(new Color(40, 80, 40));
+        inviteNotificationPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(60, 110, 60)),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)));
+        inviteNotificationPanel.setVisible(false);
+
+        inviteNotificationLabel = new JLabel();
+        inviteNotificationLabel.setFont(GUIStyles.FONT_BODY);
+        inviteNotificationLabel.setForeground(Color.WHITE);
+
+        inviteAcceptButton = new JButton("Accept");
+        inviteAcceptButton.setFont(GUIStyles.FONT_SMALL);
+        inviteAcceptButton.setBackground(new Color(50, 160, 70));
+        inviteAcceptButton.setForeground(Color.WHITE);
+        inviteAcceptButton.setFocusPainted(false);
+        inviteAcceptButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(60, 180, 80), 1),
+                BorderFactory.createEmptyBorder(4, 14, 4, 14)));
+        inviteAcceptButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        inviteAcceptButton.addActionListener(e -> {
+            if (pendingInviteFromUser != null) {
+                String gt = pendingInviteGameType;
+                String from = pendingInviteFromUser;
+                pendingInviteGameType = null;
+                pendingInviteFromUser = null;
+                inviteNotificationPanel.setVisible(false);
+                revalidate();
+                chatClient.sendGameAccept(gt, from);
+                String label = gt.equals("battleship") ? "Battleship" : gt.toUpperCase();
+                appendSystemMessage("You accepted " + from + "'s " + label + " invite. Launching game...");
+                launchGameAsJoiner(gt, from);
+            }
+        });
+
+        inviteDeclineButton = new JButton("Decline");
+        inviteDeclineButton.setFont(GUIStyles.FONT_SMALL);
+        inviteDeclineButton.setBackground(new Color(160, 50, 50));
+        inviteDeclineButton.setForeground(Color.WHITE);
+        inviteDeclineButton.setFocusPainted(false);
+        inviteDeclineButton.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 60, 60), 1),
+                BorderFactory.createEmptyBorder(4, 14, 4, 14)));
+        inviteDeclineButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        inviteDeclineButton.addActionListener(e -> {
+            if (pendingInviteFromUser != null) {
+                String gt = pendingInviteGameType;
+                String from = pendingInviteFromUser;
+                pendingInviteGameType = null;
+                pendingInviteFromUser = null;
+                inviteNotificationPanel.setVisible(false);
+                revalidate();
+                chatClient.sendGameDecline(gt, from);
+                String label = gt.equals("battleship") ? "Battleship" : gt.toUpperCase();
+                appendSystemMessage("You declined " + from + "'s " + label + " invite.");
+            }
+        });
+
+        inviteNotificationPanel.add(inviteNotificationLabel);
+        inviteNotificationPanel.add(inviteAcceptButton);
+        inviteNotificationPanel.add(inviteDeclineButton);
+
+        wrapper.add(inviteNotificationPanel, BorderLayout.NORTH);
+        wrapper.add(buildInputBar(), BorderLayout.CENTER);
+        return wrapper;
     }
 
     // body: tabs, chat, & users
@@ -1090,17 +1170,12 @@ public class MainChatWindow extends JFrame implements ActionListener {
 
     public void handleGameInvite(String gameType, String fromUser) {
         String label = gameType.equals("battleship") ? "Battleship" : gameType.toUpperCase();
-        int resp = JOptionPane.showConfirmDialog(this,
-                fromUser + " is challenging you to " + label + "!\nDo you accept?",
-                label + " Invite", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (resp == JOptionPane.YES_OPTION) {
-            chatClient.sendGameAccept(gameType, fromUser);
-            appendSystemMessage("You accepted " + fromUser + "'s " + label + " invite. Launching game...");
-            launchGameAsJoiner(gameType, fromUser);
-        } else {
-            chatClient.sendGameDecline(gameType, fromUser);
-            appendSystemMessage("You declined " + fromUser + "'s " + label + " invite.");
-        }
+        pendingInviteGameType = gameType;
+        pendingInviteFromUser = fromUser;
+        inviteNotificationLabel.setText("⚔ " + fromUser + " is challenging you to " + label + "!");
+        inviteNotificationPanel.setVisible(true);
+        revalidate();
+        appendSystemMessage(fromUser + " invited you to play " + label + ". Click Accept or Decline below.");
     }
 
     public void handleGameAccept(String gameType, String accepter) {

@@ -91,7 +91,7 @@ public class ChatClient {
     }
 
     
-    private static String SERVER_ADDRESS = "10.2.131.0";
+    private static String SERVER_ADDRESS = "10.2.131.1";
     private static final int SERVER_PORT = 3500;
 
     private static final int FILE_CHUNK_SIZE = 12000;
